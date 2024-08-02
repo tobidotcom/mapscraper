@@ -24,7 +24,7 @@ def enrich_data(businesses, google_maps_api_key, openai_api_key):
             except Exception as e:
                 st.error(f"Error enriching data for business {business['name']}: {e}")
         else:
-            st.error(f"Business {business['name']} does not have a place_id or website.")
+            st.warning(f"Business {business.get('name', 'Unknown')} does not have a place_id or website.")
         enriched_businesses.append(business)
     return enriched_businesses
 
@@ -108,4 +108,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
