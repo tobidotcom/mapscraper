@@ -58,14 +58,13 @@ async def main():
                 for i, future in enumerate(asyncio.as_completed(tasks)):
                     try:
                         businesses = await future
-                        if businesses:
-                            logging.debug(f"Businesses found for postal code: {businesses}")
+                        logging.debug(f"Businesses found for postal code {postal_codes[i]}: {businesses}")
                         all_businesses.extend(businesses)
                         progress = (i + 1) / total_postal_codes  # Calculate progress as a fraction
                         progress_bar.progress(progress)  # Update the progress bar with a fraction
                     except Exception as exc:
                         st.error(f"Error occurred while processing postal code: {exc}")
-                        logging.error(f"Error occurred while processing postal code: {exc}")
+                        logging.error(f"Error occurred while processing postal code {postal_codes[i]}: {exc}")
 
             # Ensure progress bar completes
             progress_bar.progress(1.0)
@@ -109,3 +108,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
