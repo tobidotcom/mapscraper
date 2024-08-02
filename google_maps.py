@@ -1,3 +1,4 @@
+# Contents of google_maps.py
 import requests
 import time
 
@@ -5,7 +6,7 @@ def get_place_details(place_id, api_key):
     url = "https://maps.googleapis.com/maps/api/place/details/json"
     params = {
         "place_id": place_id,
-        "fields": "formatted_phone_number,website",
+        "fields": "formatted_phone_number,website,rating,user_ratings_total,reviews",
         "key": api_key
     }
     response = requests.get(url, params=params)
@@ -14,11 +15,12 @@ def get_place_details(place_id, api_key):
     if details_data.get("result"):
         phone = details_data["result"].get("formatted_phone_number", "")
         website = details_data["result"].get("website", "")
+        rating = details_data["result"].get("rating", 0)
+        user_ratings_total = details_data["result"].get("user_ratings_total", 0)
+        reviews = details_data["result"].get("reviews", [])
+        return phone, website, rating, user_ratings_total, reviews
     else:
-        phone = ""
-        website = ""
-    
-    return phone, website
+        return "", "", 0, 0, []
 
 def search_google_maps(query, location, api_key):
     url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
@@ -36,14 +38,9 @@ def search_google_maps(query, location, api_key):
             name = result["name"]
             address = result["formatted_address"]
             place_id = result["place_id"]
-            rating = result.get("rating", 0)
-            user_ratings_total = result.get("user_ratings_total", 0)
             
-            # Fetch detailed place information
-            phone, website = get_place_details(place_id, api_key)
-            reviews = get_business_reviews(place_id, api_key)
-            reviews_text = ' '.join(reviews)  # Combine all reviews into a single text
-
+            phone, website, rating, user_ratings_total, reviews = get_place_details(place_id, api_key)
+            
             businesses.append({
                 "name": name, 
                 "address": address, 
@@ -51,8 +48,7 @@ def search_google_maps(query, location, api_key):
                 "website": website,
                 "rating": rating,
                 "user_ratings_total": user_ratings_total,
-                "reviews_count": user_ratings_total,
-                "reviews_text": reviews_text,
+                "reviews": reviews,
                 "place_id": place_id
             })
 
@@ -65,3 +61,4 @@ def search_google_maps(query, location, api_key):
         time.sleep(2)
 
     return businesses
+
