@@ -4,11 +4,21 @@ from google_maps import search_google_maps
 from openai import get_postal_codes
 from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results, calculate_lead_score
+from web_scraper import scrape_website
 
 def process_postal_code(postal_code, query, api_key):
     st.write(f"Searching in postal code: {postal_code}")
     businesses = search_google_maps(query, postal_code, api_key)
     return businesses
+
+def enrich_data(businesses):
+    enriched_businesses = []
+    for business in businesses:
+        if business["website"]:
+            scrape_data = scrape_website(business["website"])
+            business.update(scrape_data)
+        enriched_businesses.append(business)
+    return enriched_businesses
 
 def main():
     st.title("Lead Generation Tool")
@@ -68,10 +78,17 @@ def main():
                             "firstName": business["name"],
                             "address1": business["address"],
                             "phone": business["phone"],
-                            "website": business["website"]
+                            "website": business["website"],
+                            "email": business.get('emails', '')
                         }
                         response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
                         st.write(f"Added contact: {response}")
+
+            if st.button("Enrich Data"):
+                enriched_businesses = enrich_data(unique_businesses)
+                save_to_csv(enriched_businesses, "enriched_businesses.csv")
+                st.success(f"Saved enriched data to enriched_businesses.csv")
+                display_results(enriched_businesses, st)
 
 if __name__ == "__main__":
     main()
