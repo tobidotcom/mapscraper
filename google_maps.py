@@ -2,7 +2,7 @@ import requests
 
 def search_google_maps(query, postal_codes, api_key):
     url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
-    all_businesses = []
+    businesses = []
     
     for postal_code in postal_codes:
         params = {
@@ -10,19 +10,13 @@ def search_google_maps(query, postal_codes, api_key):
             "key": api_key,
             "region": "us",
             "language": "en",
-            "location": f"{postal_code},US",  # Adjust location parameter
-            "radius": 5000  # Adjust radius as needed
+            "pagetoken": None
         }
-        next_page_token = None
-        
         while True:
-            if next_page_token:
-                params['pagetoken'] = next_page_token
-            
             response = requests.get(url, params=params)
             if response.status_code != 200:
                 raise Exception(f"Error fetching data from Google Maps API: {response.text}")
-
+            
             data = response.json()
             places = data.get("results", [])
             
@@ -35,10 +29,13 @@ def search_google_maps(query, postal_codes, api_key):
                     "website": place.get("website", ""),
                     "phone": place.get("formatted_phone_number", "")
                 }
-                all_businesses.append(business)
-            
+                businesses.append(business)
+
+            # Check for next page
             next_page_token = data.get("next_page_token")
-            if not next_page_token:
+            if next_page_token:
+                params["pagetoken"] = next_page_token
+            else:
                 break
     
-    return all_businesses
+    return businesses
