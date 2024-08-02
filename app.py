@@ -89,22 +89,20 @@ async def main():
             display_results(filtered_businesses, st)
 
             # Adding selected businesses to GoHighLevel
-            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in filtered_businesses]
-            selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names, key="selected_businesses_multiselect")
+            for business in filtered_businesses:
+                contact = {
+                    "name": business.get("name"),
+                    "phone": business.get("phone"),
+                    "email": "",  # You need to extract or provide email addresses if available
+                    "website": business.get("website"),
+                    "address": business.get("address"),
+                    "lead_score": business.get("lead_score")
+                }
+                try:
+                    add_contact_to_gohighlevel(gohighlevel_api_key, contact)
+                except Exception as e:
+                    st.error(f"Error adding contact to GoHighLevel: {e}")
 
-            if st.button("Add Selected to GoHighLevel", key="add_to_gohighlevel_button"):
-                for business in filtered_businesses:
-                    business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
-                    if business_str in selected_businesses:
-                        contact = {
-                            "firstName": business["name"],
-                            "address1": business["address"],
-                            "phone": business["phone"],
-                            "website": business["website"],
-                            "email": business.get('best_email', '')
-                        }
-                        response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
-                        st.write(f"Added contact: {response}")
-
+# Run the main function
 if __name__ == "__main__":
     asyncio.run(main())
