@@ -4,19 +4,15 @@ from google_maps import search_google_maps
 from openai_api import get_postal_codes, evaluate_businesses
 from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results, calculate_lead_score
+from web_scraper import scrape_website
 
 def get_postal_codes_for_area(user_address, openai_api_key):
-    # Generate postal codes for the user’s area using OpenAI
     return get_postal_codes(user_address, openai_api_key)
 
 def process_postal_code(postal_code, query, api_key):
     st.write(f"Searching in postal code: {postal_code}")
     businesses = search_google_maps(query, postal_code, api_key)
     return businesses
-
-def get_niche_suggestions(business_description, openai_api_key):
-    # Request niche suggestions from OpenAI
-    return evaluate_businesses(business_description, openai_api_key=openai_api_key)
 
 def main():
     st.title("1001Leads - Cold Calling Challenge")
@@ -30,31 +26,35 @@ def main():
     user_website = st.text_input("Optional: Your Website")
     user_address = st.text_input("Your Business Address")
 
-    # Button to generate niche suggestions
     if st.button("Generate Niche"):
         if not openai_api_key:
             st.error("Please enter a valid OpenAI API key.")
         elif not business_description:
             st.error("Please enter a business description.")
+        elif not user_address:
+            st.error("Please enter your business address.")
         else:
+            # Get website content if URL is provided
+            website_content = ""
+            if user_website:
+                website_data = scrape_website(user_website)
+                website_content = website_data.get("website_content", "")
+
+            # Get niche suggestions from OpenAI
             st.write("Generating niche suggestions...")
-            niche_suggestions = get_niche_suggestions(business_description, openai_api_key)
+            niche_suggestions = evaluate_businesses(business_description, website_content, user_address, openai_api_key)
             if not niche_suggestions:
-                st.error("Could not retrieve niche suggestions. Please check your OpenAI API key.")
+                st.error("Could not retrieve niche suggestions. Please check your OpenAI API key and business details.")
                 return
 
-            # Display the top 3 niches as buttons
-            niches = niche_suggestions.split("\n")
-            if len(niches) > 3:
-                niches = niches[:3]  # Take only the top 3 niches
-
-            selected_niche = st.radio("Select a Niche", niches)
+            # Display the top 10 niches as buttons
+            selected_niche = st.selectbox("Select a Niche", niche_suggestions)
             
             if st.button("Proceed with Selected Niche"):
-                if not google_maps_api_key or not user_address:
-                    st.error("Please enter your Google Maps API key and business address.")
+                if not google_maps_api_key:
+                    st.error("Please enter a valid Google Maps API key.")
                     return
-                
+
                 st.write(f"Proceeding with selected niche: {selected_niche}")
 
                 # Get the postal codes for the user’s area
@@ -120,3 +120,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
