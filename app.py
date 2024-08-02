@@ -3,6 +3,7 @@ import csv
 import requests
 import pandas as pd
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Function to get place details from Google Maps Places API
 def get_place_details(place_id, api_key):
@@ -136,6 +137,12 @@ def calculate_lead_score(business):
         score += 30
     return score
 
+# Function to process a single postal code
+def process_postal_code(postal_code, query, api_key):
+    st.write(f"Searching in postal code: {postal_code}")
+    businesses = search_google_maps(query, postal_code, api_key)
+    return businesses
+
 # Main function to handle the Streamlit app
 def main():
     st.title("Lead Generation Tool")
@@ -160,14 +167,18 @@ def main():
             if not postal_codes:
                 st.error("Could not retrieve postal codes. Please check your OpenAI API key and city name.")
                 return
-            
-            all_businesses = []
 
-            for postal_code in postal_codes:
-                st.write(f"Searching in postal code: {postal_code}")
-                businesses = search_google_maps(query, postal_code, google_maps_api_key)
-                all_businesses.extend(businesses)
-                time.sleep(1)  # Prevent hitting the API rate limit
+            all_businesses = []
+            
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                future_to_postal_code = {executor.submit(process_postal_code, postal_code, query, google_maps_api_key): postal_code for postal_code in postal_codes}
+                for future in as_completed(future_to_postal_code):
+                    postal_code = future_to_postal_code[future]
+                    try:
+                        businesses = future.result()
+                        all_businesses.extend(businesses)
+                    except Exception as exc:
+                        st.error(f"Error occurred while processing postal code {postal_code}: {exc}")
 
             # Remove duplicates
             unique_businesses = {b['name'] + b['address']: b for b in all_businesses}.values()
