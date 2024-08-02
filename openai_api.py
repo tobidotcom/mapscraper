@@ -9,10 +9,10 @@ def get_postal_codes(city, openai_api_key):
     data = {
         "model": "gpt-3.5-turbo",
         "messages": [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": f"List all postal codes for the area around {city} in a comma-separated list format. Do only respond with the list, nothing else."}
+            {"role": "system", "content": "You are a helpful assistant who can generate comprehensive lists."},
+            {"role": "user", "content": f"Please provide a comma-separated list of all postal codes for {city}, including those from the surrounding areas. Ensure that the list is comprehensive and covers a broad range of postal codes."}
         ],
-        "max_tokens": 500
+        "max_tokens": 1000
     }
     response = requests.post(url, headers=headers, json=data)
     result = response.json()
@@ -24,4 +24,3 @@ def get_postal_codes(city, openai_api_key):
         postal_codes = [code.strip() for code in postal_codes]
     
     return postal_codes
-
