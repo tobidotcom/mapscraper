@@ -51,7 +51,3 @@ def evaluate_businesses(description, website_content, address, openai_api_key):
         return niche_list
     else:
         return []
-
-        return niche_list
-    else:
-        return []
