@@ -2,6 +2,7 @@ import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from google_maps import search_google_maps
 from openai_api import get_postal_codes
+from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results, calculate_lead_score
 
 def get_postal_codes_for_area(city, openai_api_key):
@@ -17,6 +18,7 @@ def main():
 
     st.sidebar.header("Settings")
     google_maps_api_key = st.sidebar.text_input("Google Maps API Key", type="password")
+    gohighlevel_api_key = st.sidebar.text_input("GoHighLevel API Key", type="password")
     openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
 
     search_query = st.text_input("Search Query", placeholder="e.g., 'Plumbers'")
@@ -25,6 +27,8 @@ def main():
     if st.button("Generate Leads"):
         if not google_maps_api_key:
             st.error("Please enter a valid Google Maps API key.")
+        elif not gohighlevel_api_key:
+            st.error("Please enter a valid GoHighLevel API key.")
         elif not openai_api_key:
             st.error("Please enter a valid OpenAI API key.")
         elif not search_query:
@@ -73,6 +77,24 @@ def main():
             save_to_csv(top_businesses, "top_businesses.csv")
             st.success(f"Saved {len(top_businesses)} top leads to top_businesses.csv")
             display_results(top_businesses, st)
+
+            # Adding selected businesses to GoHighLevel
+            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in top_businesses]
+            selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names)
+            
+            if st.button("Add Selected to GoHighLevel"):
+                for business in top_businesses:
+                    business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
+                    if business_str in selected_businesses:
+                        contact = {
+                            "firstName": business["name"],
+                            "address1": business["address"],
+                            "phone": business["phone"],
+                            "website": business["website"],
+                            "email": business.get('best_email', '')
+                        }
+                        response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
+                        st.write(f"Added contact: {response}")
 
 if __name__ == "__main__":
     main()
