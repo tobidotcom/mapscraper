@@ -1,3 +1,4 @@
+import requests
 import openai
 import pandas as pd
 
