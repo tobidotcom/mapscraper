@@ -1,7 +1,6 @@
 import requests
-import pandas as pd
 
-def get_postal_codes(city, openai_api_key):
+def get_postal_codes(address, openai_api_key):
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {openai_api_key}",
@@ -11,7 +10,7 @@ def get_postal_codes(city, openai_api_key):
         "model": "gpt-3.5-turbo",
         "messages": [
             {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": f"List all postal codes for {city} in a comma-separated list format. Do only respond with the list, nothing else."}
+            {"role": "user", "content": f"List all postal codes for the area around {address} in a comma-separated list format. Do only respond with the list, nothing else."}
         ],
         "max_tokens": 500
     }
@@ -26,25 +25,15 @@ def get_postal_codes(city, openai_api_key):
     
     return postal_codes
 
-def evaluate_businesses(csv_file_path, openai_api_key):
+def evaluate_businesses(description, website=None, openai_api_key=None):
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {openai_api_key}",
         "Content-Type": "application/json"
     }
-
-    # Read CSV file
-    df = pd.read_csv(csv_file_path)
-    businesses_data = df.to_dict(orient='records')
-    
-    # Format data for OpenAI
-    businesses_str = "\n\n".join(
-        [f"Name: {b['name']}, Address: {b['address']}, Phone: {b['phone']}, Website: {b['website']}, Rating: {b.get('rating', 'N/A')}, Reviews: {b.get('user_ratings_total', 'N/A')}" for b in businesses_data]
-    )
-    
     messages = [
-        {"role": "system", "content": "You are an expert in lead evaluation."},
-        {"role": "user", "content": f"Given the following businesses data, please evaluate and rank which businesses are the best to work with based on the provided information.\n\n{businesses_str}"}
+        {"role": "system", "content": "You are a business consultant and lead generation expert."},
+        {"role": "user", "content": f"Based on the description and services of the business, and optionally the website content, find the ideal B2B niche. Provide a customer avatar and suggest the best areas in the United States to find leads for the business. \n\nDescription: {description}\nWebsite: {website if website else 'None'}"}
     ]
     data = {
         "model": "gpt-3.5-turbo",
@@ -56,8 +45,6 @@ def evaluate_businesses(csv_file_path, openai_api_key):
     result = response.json()
 
     if result.get("choices"):
-        evaluation = result["choices"][0]["message"]["content"].strip()
-        return evaluation
+        return result["choices"][0]["message"]["content"].strip()
     else:
-        return "Evaluation not available."
-
+        return None
