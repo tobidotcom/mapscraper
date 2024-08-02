@@ -1,3 +1,4 @@
+# Contents of utils.py
 import csv
 import pandas as pd
 
@@ -26,15 +27,3 @@ def display_results(businesses, streamlit_instance):
     else:
         streamlit_instance.write("No results found.")
 
-def calculate_lead_score(business):
-    score = 0
-    if business["website"]:
-        score += 20
-    if business["phone"]:
-        score += 10
-    score += business["rating"] * 10
-    if business["user_ratings_total"] > 10:
-        score += 20
-    if business["user_ratings_total"] > 50:
-        score += 30
-    return score
