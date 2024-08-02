@@ -11,28 +11,13 @@ def get_postal_codes(city, openai_api_key):
         "model": "gpt-3.5-turbo",
         "messages": [
             {"role": "system", "content": "You are a helpful assistant who can generate comprehensive lists."},
-            {"role": "user", "content": f"Please provide a comma-separated list of all postal codes for {city}, including those from the surrounding areas. Ensure that the list is comprehensive and covers a broad range of postal codes."}
+            {"role": "user", "content": f"Please provide a comma-separated list of all postal codes for {city}."}
         ],
-        "max_tokens": 1000
+        "max_tokens": 100
     }
     response = requests.post(url, headers=headers, json=data)
-    if response.status_code != 200:
-        raise Exception(f"Error fetching data from OpenAI API: {response.text}")
-
-    result = response.json()
-
-    postal_codes = []
-    if result.get("choices"):
-        postal_codes = result["choices"][0]["message"]["content"]
-        postal_codes = postal_codes.strip().split(',')
-        postal_codes = [code.strip() for code in postal_codes]
-
-    # Check if postal_codes is a list of strings
-    if not all(isinstance(code, str) for code in postal_codes):
-        raise ValueError("Invalid postal codes: postal_codes should be a list of strings")
-
-    # Check if postal_codes is not empty
-    if not postal_codes:
-        raise ValueError("No postal codes found")
-
-    return postal_codes
+    if response.status_code == 200:
+        postal_codes_str = response.json()["choices"][0]["message"]["content"]
+        return [code.strip() for code in postal_codes_str.split(",")]
+    else:
+        raise Exception(f"Error fetching postal codes: {response.status_code} {response.text}")
