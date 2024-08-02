@@ -53,7 +53,7 @@ def main():
             # Calculate lead scores
             for business in all_businesses:
                 business["lead_score"] = calculate_lead_score(business)
-            
+
             # Sort businesses by lead score
             all_businesses_sorted = sorted(all_businesses, key=lambda x: x["lead_score"], reverse=True)
 
@@ -65,7 +65,7 @@ def main():
             # Adding selected businesses to GoHighLevel
             business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in all_businesses_sorted]
             selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names, key="selected_businesses")
-            
+
             if st.button("Add Selected to GoHighLevel", key="add_to_gohighlevel"):
                 for business in all_businesses_sorted:
                     business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
@@ -82,4 +82,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-`
