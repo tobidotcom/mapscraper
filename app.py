@@ -14,7 +14,7 @@ def fetch_businesses_for_postal_code(search_query, postal_code, google_maps_api_
         return []
 
 def main():
-    st.title("1001Leads - Cold Calling Challenge")
+    st.title("LeadGenius - Your Ultimate Lead Generation Tool")
 
     st.sidebar.header("Settings")
     google_maps_api_key = st.sidebar.text_input("Google Maps API Key", type="password", key="google_maps_api_key_input")
@@ -116,4 +116,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
