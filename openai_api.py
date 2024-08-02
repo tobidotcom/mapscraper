@@ -1,4 +1,3 @@
-# Contents of openai_api.py
 import requests
 import pandas as pd
 
@@ -34,45 +33,31 @@ def evaluate_businesses(csv_file_path, openai_api_key):
         "Content-Type": "application/json"
     }
 
-    # Read the CSV file
+    # Read CSV file
     df = pd.read_csv(csv_file_path)
+    businesses_data = df.to_dict(orient='records')
     
-    # Check if the dataframe is empty
-    if df.empty:
-        return "No data available for evaluation."
-
-    businesses = df.to_dict(orient="records")
-
-    # Create messages for the API request
+    # Format data for OpenAI
+    businesses_str = "\n\n".join(
+        [f"Name: {b['name']}, Address: {b['address']}, Phone: {b['phone']}, Website: {b['website']}, Rating: {b.get('rating', 'N/A')}, Reviews: {b.get('user_ratings_total', 'N/A')}" for b in businesses_data]
+    )
+    
     messages = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": f"Given the following data on businesses, identify the best ones to work with based on their ratings, number of reviews, and other details. Provide a summary of why each selected business is considered the best.\n\nData: {businesses}"}
+        {"role": "system", "content": "You are an expert in lead evaluation."},
+        {"role": "user", "content": f"Given the following businesses data, please evaluate and rank which businesses are the best to work with based on the provided information.\n\n{businesses_str}"}
     ]
-
     data = {
         "model": "gpt-3.5-turbo",
         "messages": messages,
-        "max_tokens": 1500
+        "max_tokens": 1000
     }
     
-    try:
-        response = requests.post(url, headers=headers, json=data)
-        response.raise_for_status()  # Raise an error for HTTP error responses
-        result = response.json()
+    response = requests.post(url, headers=headers, json=data)
+    result = response.json()
 
-        # Debug: print the response content
-        print("OpenAI API response:", result)
-
-        if result.get("choices"):
-            evaluation = result["choices"][0]["message"]["content"]
-            return evaluation
-        
-        return "Evaluation could not be performed."
-    
-    except requests.exceptions.RequestException as e:
-        # Handle request exceptions
-        return f"Request error: {e}"
-    except Exception as e:
-        # Handle any other exceptions
-        return f"An unexpected error occurred: {e}"
+    if result.get("choices"):
+        evaluation = result["choices"][0]["message"]["content"].strip()
+        return evaluation
+    else:
+        return "Evaluation not available."
 
