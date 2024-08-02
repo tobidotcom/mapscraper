@@ -1,11 +1,10 @@
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from google_maps import search_google_maps
-from openai import get_postal_codes
+from openai_api import get_postal_codes, evaluate_businesses
 from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results, calculate_lead_score
 from web_scraper import get_business_reviews
-from openai import evaluate_businesses
 
 def process_postal_code(postal_code, query, api_key):
     st.write(f"Searching in postal code: {postal_code}")
