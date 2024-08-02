@@ -49,5 +49,35 @@ def get_business_reviews(place_id, google_maps_api_key):
     params = {
         "place_id": place_id,
         "fields": "reviews",
-        "
+        "key": google_maps_api_key
+    }
+
+    response = requests.get(url, params=params)
+    details_data = response.json()
+
+    reviews = []
+    if details_data.get("result") and "reviews" in details_data["result"]:
+        reviews = [review["text"] for review in details_data["result"]["reviews"]]
+    
+    return reviews
+
+def get_best_email_from_openai(website_content, reviews, openai_api_key):
+    import openai
+
+    openai.api_key = openai_api_key
+
+    prompt = (f"Given the following content from a website and customer reviews, "
+              "craft a personalized cold email to sell our services. "
+              "Include the best email address to contact. \n\n"
+              f"Website Content: {website_content}\n\n"
+              f"Reviews: {' '.join(reviews)}")
+    
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt,
+        max_tokens=200
+    )
+    
+    email = response.choices[0].text.strip()
+    return email if email else None
 
