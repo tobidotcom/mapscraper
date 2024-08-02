@@ -16,7 +16,7 @@ def enrich_data(businesses, google_maps_api_key, openai_api_key):
     for business in businesses:
         if "place_id" in business and business.get("website"):
             try:
-                scrape_data = scrape_website(business["website"], openai_api_key)
+                scrape_data = scrape_website(business["website"])
                 reviews = get_business_reviews(business["place_id"], google_maps_api_key)
                 best_email = get_best_email_from_openai(scrape_data["website_content"], reviews, openai_api_key)
                 business.update(scrape_data)
@@ -108,3 +108,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
