@@ -26,7 +26,7 @@ def main():
     user_website = st.text_input("Optional: Your Website")
     user_address = st.text_input("Your Business Address")
 
-    if st.button("Generate Niche"):
+    if st.button("Generate Niches"):
         if not openai_api_key:
             st.error("Please enter a valid OpenAI API key.")
         elif not business_description:
@@ -120,5 +120,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
