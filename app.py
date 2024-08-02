@@ -66,24 +66,47 @@ def display_results(businesses):
     else:
         st.write("No results found.")
 
+# Function to add a contact to GoHighLevel
+def add_contact_to_gohighlevel(api_key, contact):
+    url = "https://rest.gohighlevel.com/v1/contacts/"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    response = requests.post(url, json=contact, headers=headers)
+    return response.json()
+
 # Main function to handle the Streamlit app
 def main():
     st.title("Lead Generation Tool")
 
     st.sidebar.header("Settings")
-    api_key = st.sidebar.text_input("Google Maps API Key", type="password")
+    google_maps_api_key = st.sidebar.text_input("Google Maps API Key", type="password")
+    gohighlevel_api_key = st.sidebar.text_input("GoHighLevel API Key", type="password")
 
     query = st.text_input("Query")
     location = st.text_input("Location")
 
     if st.button("Search"):
-        if not api_key:
-            st.error("Please enter a valid API key in the settings.")
+        if not google_maps_api_key:
+            st.error("Please enter a valid Google Maps API key in the settings.")
+        elif not gohighlevel_api_key:
+            st.error("Please enter a valid GoHighLevel API key in the settings.")
         else:
-            businesses = search_google_maps(query, location, api_key)
+            businesses = search_google_maps(query, location, google_maps_api_key)
             save_to_csv(businesses, "businesses.csv")
             st.success(f"Saved {len(businesses)} results to businesses.csv")
             display_results(businesses)
+            
+            for business in businesses:
+                contact = {
+                    "firstName": business["name"],
+                    "address1": business["address"],
+                    "phone": business["phone"],
+                    "website": business["website"]
+                }
+                response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
+                st.write(f"Added contact: {response}")
 
 if __name__ == "__main__":
     main()
