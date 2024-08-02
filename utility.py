@@ -1,4 +1,3 @@
-# Contents of utils.py
 import csv
 
 def save_to_csv(businesses, filename):
@@ -14,8 +13,8 @@ def display_results(businesses, st):
         st.write(f"Address: {business['address']}")
         st.write(f"Rating: {business['rating']}")
         st.write(f"Reviews: {business['user_ratings_total']}")
-        st.write(f"Website: {business['website']}")
-        st.write(f"Phone: {business['phone']}")
+        st.write(f"Website: {business.get('website', 'N/A')}")
+        st.write(f"Phone: {business.get('phone', 'N/A')}")
         st.write(f"Lead Score: {business['lead_score']}")
         st.write("---")
 
