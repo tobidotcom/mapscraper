@@ -72,12 +72,12 @@ def get_best_email_from_openai(website_content, reviews, openai_api_key):
               f"Website Content: {website_content}\n\n"
               f"Reviews: {' '.join(reviews)}")
     
-    response = openai.Completion.create(
-        engine="text-davinci-003",
-        prompt=prompt,
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}],
         max_tokens=200
     )
     
-    email = response.choices[0].text.strip()
+    email = response.choices[0].message["content"].strip()
     return email if email else None
 
