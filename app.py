@@ -1,19 +1,28 @@
 # Contents of app.py
 import streamlit as st
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import asyncio
+import aiohttp
 from google_maps import search_google_maps
 from openai_api import get_postal_codes
 from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results, calculate_lead_score
 
-def fetch_businesses_for_postal_code(search_query, postal_code, google_maps_api_key):
+# Cache for API responses
+api_cache = {}
+
+async def fetch_businesses_for_postal_code(search_query, postal_code, google_maps_api_key, session):
     try:
-        return search_google_maps(search_query, postal_code, google_maps_api_key)
+        if (search_query, postal_code) in api_cache:
+            return api_cache[(search_query, postal_code)]
+        else:
+            businesses = await search_google_maps(search_query, postal_code, google_maps_api_key, session)
+            api_cache[(search_query, postal_code)] = businesses
+            return businesses
     except Exception as e:
         st.error(f"Error fetching data for postal code {postal_code}: {e}")
         return []
 
-def main():
+async def main():
     st.title("LeadGenius - Your Ultimate Lead Generation Tool")
 
     st.sidebar.header("Settings")
@@ -54,19 +63,17 @@ def main():
             progress_bar = st.progress(0)
             total_postal_codes = len(postal_codes)
 
-            # Process postal codes with multithreading
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                futures_to_postal_code = {executor.submit(fetch_businesses_for_postal_code, search_query, postal_code, google_maps_api_key): postal_code for postal_code in postal_codes}
-
-                for i, future in enumerate(as_completed(futures_to_postal_code)):
-                    postal_code = futures_to_postal_code[future]
+            # Process postal codes with asynchronous programming
+            async with aiohttp.ClientSession() as session:
+                tasks = [fetch_businesses_for_postal_code(search_query, postal_code, google_maps_api_key, session) for postal_code in postal_codes]
+                for i, future in enumerate(asyncio.as_completed(tasks)):
                     try:
-                        businesses = future.result()
+                        businesses = await future
                         all_businesses.extend(businesses)
                         progress = (i + 1) / total_postal_codes  # Calculate progress as a fraction
                         progress_bar.progress(progress)  # Update the progress bar with a fraction
                     except Exception as exc:
-                        st.error(f"Error occurred while processing postal code {postal_code}: {exc}")
+                        st.error(f"Error occurred while processing postal code: {exc}")
 
             # Ensure progress bar completes
             progress_bar.progress(1.0)
@@ -88,20 +95,17 @@ def main():
                 (has_website == (bool(business.get("website"))))
             ]
 
-            # Sort businesses by lead score and pick top 1001
-            top_businesses = sorted(filtered_businesses, key=lambda x: x["lead_score"], reverse=True)[:1001]
-
             # Save to CSV and display results
-            save_to_csv(top_businesses, "top_businesses.csv")
-            st.success(f"Saved {len(top_businesses)} top leads to top_businesses.csv")
-            display_results(top_businesses, st)
+            save_to_csv(filtered_businesses, "top_businesses.csv")
+            st.success(f"Saved {len(filtered_businesses)} leads to top_businesses.csv")
+            display_results(filtered_businesses, st)
 
             # Adding selected businesses to GoHighLevel
-            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in top_businesses]
+            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in filtered_businesses]
             selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names, key="selected_businesses_multiselect")
 
             if st.button("Add Selected to GoHighLevel", key="add_to_gohighlevel_button"):
-                for business in top_businesses:
+                for business in filtered_businesses:
                     business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
                     if business_str in selected_businesses:
                         contact = {
@@ -115,4 +119,4 @@ def main():
                         st.write(f"Added contact: {response}")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
