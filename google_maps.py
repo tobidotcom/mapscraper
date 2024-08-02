@@ -5,4 +5,3 @@ async def fetch_businesses_for_postal_code(search_query, postal_code, google_map
     async with session.get(url) as response:
         data = await response.json()
         return data.get('results', [])
-
