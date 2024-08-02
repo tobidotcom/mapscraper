@@ -70,3 +70,4 @@ def scrape_website(url):
     except Exception as e:
         print(f"Error scraping website {url}: {e}")
         return {"website_content": ""}
+
