@@ -33,12 +33,12 @@ def evaluate_businesses(description, website_content, address, openai_api_key):
     }
     messages = [
         {"role": "system", "content": "You are an expert in B2B lead generation and niche analysis."},
-        {"role": "user", "content": f"Based on the business description, website content, and the address provided, suggest the top 10 B2B niches that would be ideal for finding leads on Google My Business. The niches should be common B2B sectors where businesses are listed on Google My Business.\n\nBusiness Description: {description}\nWebsite Content: {website_content}\nAddress: {address}"}
+        {"role": "user", "content": f"Based on the business description, website content, and the address provided, list the top 10 B2B niches that would be ideal for finding leads on Google My Business. The list should be comma-separated and contain only the niche names, no additional text.\n\nBusiness Description: {description}\nWebsite Content: {website_content}\nAddress: {address}"}
     ]
     data = {
         "model": "gpt-3.5-turbo",
         "messages": messages,
-        "max_tokens": 1000
+        "max_tokens": 150
     }
     
     response = requests.post(url, headers=headers, json=data)
@@ -51,4 +51,3 @@ def evaluate_businesses(description, website_content, address, openai_api_key):
         return niche_list
     else:
         return []
-
