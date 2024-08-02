@@ -1,3 +1,4 @@
+# Contents of utils.py
 import csv
 import pandas as pd
 
@@ -9,9 +10,9 @@ def save_to_csv(businesses, filename):
     all_fieldnames = set()
     for business in businesses:
         all_fieldnames.update(business.keys())
-    
+
     fieldnames = sorted(list(all_fieldnames))
-    
+
     with open(filename, "w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
