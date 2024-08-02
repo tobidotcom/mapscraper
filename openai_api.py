@@ -31,4 +31,8 @@ def get_postal_codes(city, openai_api_key):
     if not all(isinstance(code, str) for code in postal_codes):
         raise ValueError("Invalid postal codes: postal_codes should be a list of strings")
 
+    # Check if postal_codes is not empty
+    if not postal_codes:
+        raise ValueError("No postal codes found")
+
     return postal_codes
