@@ -26,25 +26,39 @@ def main():
         elif not user_city:
             st.error("Please enter your city.")
         else:
-            # Get the postal codes for the area
+            # Get postal codes
             postal_codes = get_postal_codes(user_city, openai_api_key)
             if not postal_codes:
                 st.error("Could not retrieve postal codes. Please check your OpenAI API key and city.")
                 return
 
-            # Construct the query based on user input
-            query = f"{search_query} in {user_city}"
-
+            # Limit the number of postal codes to process at a time
+            max_postal_codes = 10
             all_businesses = []
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                future_to_postal_code = {executor.submit(search_google_maps, query, postal_codes, google_maps_api_key): postal_code for postal_code in postal_codes}
-                for future in as_completed(future_to_postal_code):
-                    postal_code = future_to_postal_code[future]
-                    try:
-                        businesses = future.result()
-                        all_businesses.extend(businesses)
-                    except Exception as exc:
-                        st.error(f"Error occurred while processing postal code {postal_code}: {exc}")
+
+            # Create a progress bar
+            progress_bar = st.progress(0)
+            total_batches = (len(postal_codes) + max_postal_codes - 1) // max_postal_codes  # Calculate total number of batches
+
+            for i in range(0, len(postal_codes), max_postal_codes):
+                batch_postal_codes = postal_codes[i:i + max_postal_codes]
+
+                with ThreadPoolExecutor(max_workers=5) as executor:
+                    future_to_postal_code = {executor.submit(search_google_maps, search_query, postal_code, google_maps_api_key): postal_code for postal_code in batch_postal_codes}
+                    for future in as_completed(future_to_postal_code):
+                        postal_code = future_to_postal_code[future]
+                        try:
+                            businesses = future.result()
+                            all_businesses.extend(businesses)
+                        except Exception as exc:
+                            st.error(f"Error occurred while processing postal code {postal_code}: {exc}")
+
+                # Update the progress bar
+                progress = (i // max_postal_codes + 1) / total_batches
+                progress_bar.progress(progress)
+
+            # Ensure progress bar completes
+            progress_bar.progress(1.0)
 
             if not all_businesses:
                 st.error("No businesses found. Please refine your search.")
