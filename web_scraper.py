@@ -2,73 +2,81 @@ import requests
 from bs4 import BeautifulSoup
 import re
 
-def scrape_website(url, openai_api_key):
+def extract_emails_from_text(text):
+    email_regex = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+    return re.findall(email_regex, text)
+
+def extract_emails_from_soup(soup):
+    emails = set()
+    text_content = ' '.join(element.get_text() for element in soup.find_all(text=True))
+    emails.update(extract_emails_from_text(text_content))
+    for tag in soup.find_all(['a', 'p', 'span', 'li']):
+        if tag.has_attr('href'):
+            href = tag['href']
+            if 'mailto:' in href:
+                emails.add(href.split('mailto:')[1])
+    return list(emails)
+
+def scrape_website(url, openai_api_key=None):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
-    
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-    except requests.RequestException as e:
-        return {"error": f"Failed to fetch website: {str(e)}"}
-
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    emails = extract_emails(soup)
-    best_email = select_best_email(emails, openai_api_key) if emails else None
-
-    return {
-        "emails": emails,
-        "best_email": best_email
-    }
-
-def extract_emails(soup):
-    """Extracts email addresses from the HTML soup."""
-    emails = set()
-    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
-    
-    for script in soup(['script', 'style']):
-        script.decompose()
-    
-    text = soup.get_text()
-    emails.update(re.findall(email_pattern, text))
-    
-    return list(emails)
-
-def select_best_email(emails, openai_api_key):
-    """Selects the best email address using OpenAI API."""
-    if not emails:
-        return None
-
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {openai_api_key}",
-        "Content-Type": "application/json"
-    }
-    messages = [
-        {"role": "system", "content": "You are an email analysis assistant."},
-        {"role": "user", "content": f"Given the following list of email addresses, choose the best one to contact: {', '.join(emails)}"}
-    ]
-    data = {
-        "model": "gpt-3.5-turbo",
-        "messages": messages,
-        "max_tokens": 50
-    }
 
     try:
-        response = requests.post(url, headers=headers, json=data)
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
-        result = response.json()
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+        emails = extract_emails_from_soup(soup)
+        best_email = emails[0] if emails else None
         
-        # Ensure 'choices' and 'message' keys exist
-        best_email = result.get('choices', [{}])[0].get('message', {}).get('content', '').strip()
-        
-        if best_email in emails:
-            return best_email
-        else:
-            return emails[0]  # Fallback to the first email if the response is invalid
-    except requests.RequestException as e:
-        return emails[0]  # Fallback to the first email in case of an error
-    except (KeyError, IndexError):
-        return emails[0]  # Fallback to the first email if the response structure is not as expected
+        return {
+            "emails": emails,
+            "best_email": best_email,
+            "website_content": soup.get_text()
+        }
+
+    except Exception as e:
+        print(f"Error scraping website {url}: {e}")
+        return {
+            "emails": [],
+            "best_email": None,
+            "website_content": ""
+        }
+
+def get_business_reviews(place_id, google_maps_api_key):
+    url = "https://maps.googleapis.com/maps/api/place/details/json"
+    params = {
+        "place_id": place_id,
+        "fields": "reviews",
+        "key": google_maps_api_key
+    }
+
+    response = requests.get(url, params=params)
+    details_data = response.json()
+
+    reviews = []
+    if details_data.get("result") and "reviews" in details_data["result"]:
+        reviews = [review["text"] for review in details_data["result"]["reviews"]]
+    
+    return reviews
+
+def get_best_email_from_openai(url, reviews, openai_api_key):
+    import openai
+
+    openai.api_key = openai_api_key
+
+    prompt = (f"Given the following content from a website and customer reviews, "
+              "craft a personalized cold email to sell our services. "
+              "Include the best email address to contact. \n\n"
+              f"Website Content: {url}\n\n"
+              f"Reviews: {' '.join(reviews)}")
+    
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt,
+        max_tokens=200
+    )
+    
+    email = response.choices[0].text.strip()
+    return email if email else None
