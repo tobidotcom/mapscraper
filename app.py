@@ -1,11 +1,10 @@
-# Contents of app.py
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from google_maps import search_google_maps
 from openai_api import get_postal_codes, evaluate_businesses
 from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results
-import os
+from web_scraper import scrape_website, get_business_reviews
 
 def process_postal_code(postal_code, query, api_key):
     st.write(f"Searching in postal code: {postal_code}")
@@ -50,11 +49,24 @@ def main():
 
             # Remove duplicates
             unique_businesses = {b['name'] + b['address']: b for b in all_businesses}.values()
+            unique_businesses = list(unique_businesses)  # Convert to list if needed
+
+            # Debugging: Print the unique_businesses to see its content
+            st.write("Unique businesses:", unique_businesses)
+            
+            # Check if unique_businesses is empty
+            if not unique_businesses:
+                st.error("No businesses found. Please try different search criteria.")
+                return
 
             # Save businesses to CSV for evaluation
             csv_file_path = "businesses.csv"
-            save_to_csv(unique_businesses, csv_file_path)
-            st.success(f"Saved {len(unique_businesses)} results to {csv_file_path}")
+            try:
+                save_to_csv(unique_businesses, csv_file_path)
+                st.success(f"Saved {len(unique_businesses)} results to {csv_file_path}")
+            except ValueError as e:
+                st.error(f"Error saving data to CSV: {e}")
+                return
 
             # Evaluate businesses using OpenAI
             evaluation_result = evaluate_businesses(csv_file_path, openai_api_key)
