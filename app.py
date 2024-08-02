@@ -46,6 +46,7 @@ def main():
             query = f"{business_description} in {user_address}"
 
             all_businesses = []
+            business_ids = set()
             
             with ThreadPoolExecutor(max_workers=5) as executor:
                 future_to_postal_code = {executor.submit(process_postal_code, postal_code, query, google_maps_api_key): postal_code for postal_code in postal_codes}
@@ -53,7 +54,12 @@ def main():
                     postal_code = future_to_postal_code[future]
                     try:
                         businesses = future.result()
-                        all_businesses.extend(businesses)
+                        for business in businesses:
+                            # Create a unique identifier for each business
+                            business_id = f"{business['name']} - {business['address']}"
+                            if business_id not in business_ids:
+                                business_ids.add(business_id)
+                                all_businesses.append(business)
                     except Exception as exc:
                         st.error(f"Error occurred while processing postal code {postal_code}: {exc}")
 
