@@ -18,7 +18,9 @@ def get_postal_codes(city, openai_api_key):
     try:
         response = requests.post(url, headers=headers, json=data)
         response.raise_for_status()  # Raise an exception for HTTP errors
-        postal_codes_str = response.json()["choices"][0]["message"]["content"]
+        response_json = response.json()
+        logging.debug(f"API Response: {response_json}")
+        postal_codes_str = response_json.get("choices", [{}])[0].get("message", {}).get("content", "")
         postal_codes = [code.strip() for code in postal_codes_str.split(",") if code.strip().isdigit()]
         if not postal_codes:
             raise ValueError("No valid postal codes found in the response.")
