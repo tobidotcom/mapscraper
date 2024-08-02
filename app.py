@@ -99,12 +99,4 @@ async def main():
                         contact = {
                             "firstName": business["name"],
                             "address1": business["address"],
-                            "phone": business["phone"],
-                            "website": business["website"],
-                            "email": business.get('best_email', '')
-                        }
-                        response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
-                        st.write(f"Added contact: {response}")
-
-if __name__ == "__main__":
-    asyncio.run(main())
+             
