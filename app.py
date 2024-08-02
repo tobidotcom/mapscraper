@@ -5,24 +5,16 @@ from openai_api import get_postal_codes
 from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results, calculate_lead_score
 
-def get_postal_codes_for_area(city, openai_api_key):
-    return get_postal_codes(city, openai_api_key)
-
-def process_postal_code(postal_code, query, api_key):
-    st.write(f"Searching in postal code: {postal_code}")
-    businesses = search_google_maps(query, postal_code, api_key)
-    return businesses
-
 def main():
-    st.title("Lead Generation App")
+    st.title("1001Leads - Cold Calling Challenge")
 
     st.sidebar.header("Settings")
     google_maps_api_key = st.sidebar.text_input("Google Maps API Key", type="password")
     gohighlevel_api_key = st.sidebar.text_input("GoHighLevel API Key", type="password")
     openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
 
-    search_query = st.text_input("Search Query", placeholder="e.g., 'Plumbers'")
-    city = st.text_input("City", placeholder="e.g., 'New York'")
+    search_query = st.text_input("Enter your search query (e.g., plumbers, landscapers)")
+    user_city = st.text_input("Enter your city")
 
     if st.button("Generate Leads"):
         if not google_maps_api_key:
@@ -31,34 +23,26 @@ def main():
             st.error("Please enter a valid GoHighLevel API key.")
         elif not openai_api_key:
             st.error("Please enter a valid OpenAI API key.")
-        elif not search_query:
-            st.error("Please enter a search query.")
-        elif not city:
-            st.error("Please enter a city.")
+        elif not user_city:
+            st.error("Please enter your city.")
         else:
-            # Get postal codes for the city
-            st.write("Retrieving postal codes...")
-            postal_codes = get_postal_codes_for_area(city, openai_api_key)
+            # Get the postal codes for the area
+            postal_codes = get_postal_codes(user_city, openai_api_key)
             if not postal_codes:
                 st.error("Could not retrieve postal codes. Please check your OpenAI API key and city.")
                 return
 
             # Construct the query based on user input
+            query = f"{search_query} in {user_city}"
+
             all_businesses = []
-            business_ids = set()
-            
             with ThreadPoolExecutor(max_workers=5) as executor:
-                future_to_postal_code = {executor.submit(process_postal_code, postal_code, search_query, google_maps_api_key): postal_code for postal_code in postal_codes}
+                future_to_postal_code = {executor.submit(search_google_maps, query, postal_codes, google_maps_api_key): postal_code for postal_code in postal_codes}
                 for future in as_completed(future_to_postal_code):
                     postal_code = future_to_postal_code[future]
                     try:
                         businesses = future.result()
-                        for business in businesses:
-                            # Create a unique identifier for each business
-                            business_id = f"{business['name']} - {business['address']}"
-                            if business_id not in business_ids:
-                                business_ids.add(business_id)
-                                all_businesses.append(business)
+                        all_businesses.extend(businesses)
                     except Exception as exc:
                         st.error(f"Error occurred while processing postal code {postal_code}: {exc}")
 
@@ -70,20 +54,20 @@ def main():
             for business in all_businesses:
                 business["lead_score"] = calculate_lead_score(business)
             
-            # Sort businesses by lead score
-            sorted_businesses = sorted(all_businesses, key=lambda x: x["lead_score"], reverse=True)
+            # Sort businesses by lead score and pick top 1001
+            top_businesses = sorted(all_businesses, key=lambda x: x["lead_score"], reverse=True)[:1001]
 
-            # Save to CSV and display all results
-            save_to_csv(sorted_businesses, "all_businesses.csv")
-            st.success(f"Saved {len(sorted_businesses)} leads to all_businesses.csv")
-            display_results(sorted_businesses, st)
+            # Save to CSV and display results
+            save_to_csv(top_businesses, "top_businesses.csv")
+            st.success(f"Saved {len(top_businesses)} top leads to top_businesses.csv")
+            display_results(top_businesses, st)
 
             # Adding selected businesses to GoHighLevel
-            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in sorted_businesses]
+            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in top_businesses]
             selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names)
             
             if st.button("Add Selected to GoHighLevel"):
-                for business in sorted_businesses:
+                for business in top_businesses:
                     business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
                     if business_str in selected_businesses:
                         contact = {
@@ -95,6 +79,9 @@ def main():
                         }
                         response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
                         st.write(f"Added contact: {response}")
+
+if __name__ == "__main__":
+    main()
 
 if __name__ == "__main__":
     main()
