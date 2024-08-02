@@ -1,3 +1,5 @@
+# google_maps.py
+
 import requests
 import time
 
@@ -39,7 +41,6 @@ def search_google_maps(query, location, api_key):
             rating = result.get("rating", 0)
             user_ratings_total = result.get("user_ratings_total", 0)
             
-            # Get additional details for each place
             phone, website = get_place_details(place_id, api_key)
             
             businesses.append({
@@ -48,7 +49,8 @@ def search_google_maps(query, location, api_key):
                 "phone": phone, 
                 "website": website,
                 "rating": rating,
-                "user_ratings_total": user_ratings_total
+                "user_ratings_total": user_ratings_total,
+                "place_id": place_id  # Ensure place_id is included
             })
 
         if 'next_page_token' not in data:
@@ -57,7 +59,6 @@ def search_google_maps(query, location, api_key):
         next_page_token = data['next_page_token']
         params['pagetoken'] = next_page_token
 
-        # Google Maps Places API enforces a short delay before fetching the next page
         time.sleep(2)
 
     return businesses
