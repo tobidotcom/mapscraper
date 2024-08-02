@@ -37,7 +37,7 @@ def main():
 
             all_businesses = []
             with ThreadPoolExecutor(max_workers=5) as executor:
-                future_to_postal_code = {executor.submit(search_google_maps, query, postal_codes, google_maps_api_key): postal_code for postal_code in postal_codes}
+                future_to_postal_code = {executor.submit(search_google_maps, query, [postal_code], google_maps_api_key): postal_code for postal_code in postal_codes}
                 for future in as_completed(future_to_postal_code):
                     postal_code = future_to_postal_code[future]
                     try:
@@ -54,20 +54,20 @@ def main():
             for business in all_businesses:
                 business["lead_score"] = calculate_lead_score(business)
             
-            # Sort businesses by lead score and pick top 1001
-            top_businesses = sorted(all_businesses, key=lambda x: x["lead_score"], reverse=True)[:1001]
+            # Sort businesses by lead score
+            all_businesses_sorted = sorted(all_businesses, key=lambda x: x["lead_score"], reverse=True)
 
             # Save to CSV and display results
-            save_to_csv(top_businesses, "top_businesses.csv")
-            st.success(f"Saved {len(top_businesses)} top leads to top_businesses.csv")
-            display_results(top_businesses, st)
+            save_to_csv(all_businesses_sorted, "all_businesses.csv")
+            st.success(f"Saved {len(all_businesses_sorted)} leads to all_businesses.csv")
+            display_results(all_businesses_sorted, st)
 
             # Adding selected businesses to GoHighLevel
-            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in top_businesses]
+            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in all_businesses_sorted]
             selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names, key="selected_businesses")
             
             if st.button("Add Selected to GoHighLevel", key="add_to_gohighlevel"):
-                for business in top_businesses:
+                for business in all_businesses_sorted:
                     business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
                     if business_str in selected_businesses:
                         contact = {
@@ -82,6 +82,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
