@@ -25,7 +25,7 @@ def get_postal_codes(address, openai_api_key):
     
     return postal_codes
 
-def evaluate_businesses(description, website=None, openai_api_key=None):
+def evaluate_businesses(description, website_content, city, openai_api_key=None):
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {openai_api_key}",
@@ -33,18 +33,21 @@ def evaluate_businesses(description, website=None, openai_api_key=None):
     }
     messages = [
         {"role": "system", "content": "You are a business consultant and lead generation expert."},
-        {"role": "user", "content": f"Based on the description and services of the business, and optionally the website content, find the ideal B2B niche. Provide a customer avatar and suggest the best areas in the United States to find leads for the business. \n\nDescription: {description}\nWebsite: {website if website else 'None'}"}
+        {"role": "user", "content": f"Brainstorm all possible business niches relevant to the following information and provide a list of the top 10 niches suitable for Google My Business, in a comma-separated list format. Do only respond with the list, nothing else.\n\nDescription: {description}\nWebsite Content: {website_content}\nCity: {city}"}
     ]
     data = {
         "model": "gpt-3.5-turbo",
         "messages": messages,
-        "max_tokens": 1000
+        "max_tokens": 500
     }
     
     response = requests.post(url, headers=headers, json=data)
     result = response.json()
 
+    niches = []
     if result.get("choices"):
-        return result["choices"][0]["message"]["content"].strip()
-    else:
-        return None
+        niches = result["choices"][0]["message"]["content"]
+        niches = niches.strip().split(',')
+        niches = [niche.strip() for niche in niches]
+    
+    return niches[:10]  # Return only the top 10 niches
