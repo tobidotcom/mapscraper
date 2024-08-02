@@ -15,11 +15,14 @@ def enrich_data(businesses, google_maps_api_key, openai_api_key):
     enriched_businesses = []
     for business in businesses:
         if business.get("website"):
-            scrape_data = scrape_website(business["website"], openai_api_key)
-            reviews = get_business_reviews(business["place_id"], google_maps_api_key)
-            best_email = get_best_email_from_openai(scrape_data["website_content"], reviews, openai_api_key)
-            business.update(scrape_data)
-            business["best_email"] = best_email
+            try:
+                scrape_data = scrape_website(business["website"], openai_api_key)
+                reviews = get_business_reviews(business["place_id"], google_maps_api_key)
+                best_email = get_best_email_from_openai(scrape_data["website_content"], reviews, openai_api_key)
+                business.update(scrape_data)
+                business["best_email"] = best_email
+            except Exception as e:
+                st.error(f"Error enriching data for business {business['name']}: {e}")
         enriched_businesses.append(business)
     return enriched_businesses
 
@@ -70,6 +73,9 @@ def main():
             st.success(f"Saved {len(unique_businesses)} results to businesses.csv")
             display_results(unique_businesses, st)
             
+            # Store results in session state
+            st.session_state.businesses = unique_businesses
+
             business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in unique_businesses]
             selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names)
             
@@ -87,14 +93,19 @@ def main():
                         response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
                         st.write(f"Added contact: {response}")
 
-            if st.button("Enrich Data"):
-                enriched_businesses = enrich_data(unique_businesses, google_maps_api_key, openai_api_key)
+    if st.button("Enrich Data"):
+        if 'businesses' not in st.session_state:
+            st.error("No businesses found. Please perform a search first.")
+        else:
+            try:
+                enriched_businesses = enrich_data(st.session_state.businesses, google_maps_api_key, openai_api_key)
                 save_to_csv(enriched_businesses, "enriched_businesses.csv")
                 st.success(f"Saved enriched data to enriched_businesses.csv")
                 display_results(enriched_businesses, st)
+            except Exception as e:
+                st.error(f"Error enriching data: {e}")
 
 if __name__ == "__main__":
     main()
-
 
 
