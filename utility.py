@@ -15,19 +15,11 @@ def display_results(businesses, st):
         st.write(f"Address: {business['address']}")
         st.write(f"Rating: {business['rating']}")
         st.write(f"Reviews: {business['user_ratings_total']}")
-        st.write(f"Website: {business['website']}")
-        st.write(f"Phone: {business['phone']}")
+        st.write(f"Website: {business.get('website', 'N/A')}")
+        st.write(f"Phone: {business.get('phone', 'N/A')}")
         st.write(f"Lead Score: {business['lead_score']}")
         st.write("---")
 
 def calculate_lead_score(business):
-    score = 0
-    if business.get("rating"):
-        score += business["rating"] * 10
-    if business.get("user_ratings_total"):
-        score += business["user_ratings_total"] * 0.1
-    if business.get("phone"):
-        score += 10
-    if business.get("website"):
-        score += 10
-    return score
+    # Example scoring logic
+    return (business.get("rating", 0) * 10) + min(business.get("user_ratings_total", 0), 100)
