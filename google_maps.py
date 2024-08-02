@@ -1,46 +1,47 @@
 # Contents of google_maps.py
 import aiohttp
 
-async def search_google_maps(query, postal_codes, api_key, session):
+async def search_google_maps(query, postal_code, api_key, session):
     url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
     businesses = []
+    
+    params = {
+        "query": query,
+        "key": api_key,
+        "region": "us",
+        "language": "en",
+        "location": postal_code,
+        "radius": 10000  # Adjust the radius as needed
+    }
 
-    for postal_code in postal_codes:
-        params = {
-            "query": query,
-            "key": api_key,
-            "region": "us",
-            "language": "en",
-            "pagetoken": None
-        }
-        while True:
-            async with session.get(url, params=params) as response:
-                if response.status != 200:
-                    raise Exception(f"Error fetching data from Google Maps API: {await response.text()}")
+    while True:
+        async with session.get(url, params=params) as response:
+            if response.status != 200:
+                raise Exception(f"Error fetching data from Google Maps API: {await response.text()}")
 
-                data = await response.json()
-                places = data.get("results", [])
+            data = await response.json()
+            places = data.get("results", [])
 
-                for place in places:
-                    place_id = place.get("place_id")
-                    details = await get_place_details(place_id, api_key, session)
+            for place in places:
+                place_id = place.get("place_id")
+                details = await get_place_details(place_id, api_key, session)
 
-                    business = {
-                        "name": place.get("name"),
-                        "address": place.get("formatted_address"),
-                        "rating": place.get("rating", 0),
-                        "user_ratings_total": place.get("user_ratings_total", 0),
-                        "website": details.get("website", ""),
-                        "phone": details.get("phone", "")
-                    }
-                    businesses.append(business)
+                business = {
+                    "name": place.get("name", "N/A"),
+                    "address": place.get("formatted_address", "N/A"),
+                    "rating": place.get("rating", 0),
+                    "user_ratings_total": place.get("user_ratings_total", 0),
+                    "website": details.get("website", ""),
+                    "phone": details.get("phone", "")
+                }
+                businesses.append(business)
 
-                # Check for next page
-                next_page_token = data.get("next_page_token")
-                if next_page_token:
-                    params["pagetoken"] = next_page_token
-                else:
-                    break
+            # Check for next page
+            next_page_token = data.get("next_page_token")
+            if next_page_token:
+                params["pagetoken"] = next_page_token
+            else:
+                break
 
     return businesses
 
