@@ -11,12 +11,15 @@ def process_postal_code(postal_code, query, api_key):
     businesses = search_google_maps(query, postal_code, api_key)
     return businesses
 
-def enrich_data(businesses):
+def enrich_data(businesses, openai_api_key):
     enriched_businesses = []
     for business in businesses:
         if business["website"]:
-            scrape_data = scrape_website(business["website"])
-            business.update(scrape_data)
+            scrape_data = scrape_website(business["website"], openai_api_key)
+            if 'error' in scrape_data:
+                st.write(f"Error scraping website {business['website']}: {scrape_data['error']}")
+            else:
+                business.update(scrape_data)
         enriched_businesses.append(business)
     return enriched_businesses
 
@@ -84,11 +87,16 @@ def main():
                         response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
                         st.write(f"Added contact: {response}")
 
-            if st.button("Enrich Data"):
-                enriched_businesses = enrich_data(unique_businesses)
-                save_to_csv(enriched_businesses, "enriched_businesses.csv")
-                st.success(f"Saved enriched data to enriched_businesses.csv")
-                display_results(enriched_businesses, st)
+    if st.button("Enrich Data"):
+        if not openai_api_key:
+            st.error("Please enter a valid OpenAI API key in the settings.")
+        elif not any(business.get("website") for business in unique_businesses):
+            st.error("No businesses with websites available for enrichment.")
+        else:
+            enriched_businesses = enrich_data(unique_businesses, openai_api_key)
+            save_to_csv(enriched_businesses, "enriched_businesses.csv")
+            st.success(f"Saved enriched data to enriched_businesses.csv")
+            display_results(enriched_businesses, st)
 
 if __name__ == "__main__":
     main()
