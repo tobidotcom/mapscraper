@@ -14,7 +14,7 @@ def process_postal_code(postal_code, query, api_key):
 def enrich_data(businesses, google_maps_api_key, openai_api_key):
     enriched_businesses = []
     for business in businesses:
-        if business.get("website"):
+        if "place_id" in business and business.get("website"):
             try:
                 scrape_data = scrape_website(business["website"], openai_api_key)
                 reviews = get_business_reviews(business["place_id"], google_maps_api_key)
@@ -23,6 +23,8 @@ def enrich_data(businesses, google_maps_api_key, openai_api_key):
                 business["best_email"] = best_email
             except Exception as e:
                 st.error(f"Error enriching data for business {business['name']}: {e}")
+        else:
+            st.error(f"Business {business['name']} does not have a place_id or website.")
         enriched_businesses.append(business)
     return enriched_businesses
 
@@ -72,8 +74,7 @@ def main():
             save_to_csv(unique_businesses, "businesses.csv")
             st.success(f"Saved {len(unique_businesses)} results to businesses.csv")
             display_results(unique_businesses, st)
-            
-            # Store results in session state
+
             st.session_state.businesses = unique_businesses
 
             business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in unique_businesses]
