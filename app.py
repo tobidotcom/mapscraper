@@ -2,10 +2,27 @@ import streamlit as st
 import aiohttp
 import asyncio
 import logging
-from openai_api import get_postal_codes
-from google_maps_api import fetch_businesses_for_postal_code
-from gohighlevel_api import add_contact_to_gohighlevel
-from utility import calculate_lead_score, save_to_csv, display_results
+
+# Try importing external modules and handle potential ImportError
+try:
+    from google_maps_api import fetch_businesses_for_postal_code
+except ImportError as e:
+    st.error(f"Failed to import google_maps_api: {e}")
+
+try:
+    from openai_api import get_postal_codes
+except ImportError as e:
+    st.error(f"Failed to import openai_api: {e}")
+
+try:
+    from gohighlevel_api import add_contact_to_gohighlevel
+except ImportError as e:
+    st.error(f"Failed to import gohighlevel_api: {e}")
+
+try:
+    from utility import calculate_lead_score, save_to_csv, display_results
+except ImportError as e:
+    st.error(f"Failed to import utility: {e}")
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -79,8 +96,8 @@ async def main():
                 business for business in all_businesses
                 if min_rating <= business.get("rating", 0) <= max_rating and
                 min_reviews <= business.get("review_count", 0) <= max_reviews and
-                (has_phone == (bool(business.get("phone")))) and
-                (has_website == (bool(business.get("website"))))
+                (has_phone == bool(business.get("phone"))) and
+                (has_website == bool(business.get("website")))
             ]
 
             # Save to CSV and display results
@@ -89,20 +106,21 @@ async def main():
             display_results(filtered_businesses, st)
 
             # Adding selected businesses to GoHighLevel
-            for business in filtered_businesses:
+            business_names = [f"{business['name']} - {business.get('website', 'N/A')}" for business in filtered_businesses]
+            st.write("Businesses added to GoHighLevel:")
+            for name in business_names:
+                st.write(name)
                 contact = {
-                    "name": business.get("name"),
-                    "phone": business.get("phone"),
-                    "email": "",  # You need to extract or provide email addresses if available
-                    "website": business.get("website"),
-                    "address": business.get("address"),
-                    "lead_score": business.get("lead_score")
+                    "firstName": name.split(" - ")[0],
+                    "email": "example@example.com",  # Replace with actual email if available
+                    "phone": "N/A",  # Replace with actual phone if available
+                    "address": "N/A"  # Replace with actual address if available
                 }
                 try:
-                    add_contact_to_gohighlevel(gohighlevel_api_key, contact)
+                    response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
+                    st.write(f"Added contact: {response}")
                 except Exception as e:
-                    st.error(f"Error adding contact to GoHighLevel: {e}")
+                    st.error(f"Failed to add contact: {e}")
 
-# Run the main function
 if __name__ == "__main__":
     asyncio.run(main())
