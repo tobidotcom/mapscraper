@@ -36,21 +36,3 @@ def scrape_website(url):
         return {
             "website_content": ""
         }
-
-def get_business_reviews(place_id, google_maps_api_key):
-    url = "https://maps.googleapis.com/maps/api/place/details/json"
-    params = {
-        'place_id': place_id,
-        'key': google_maps_api_key,
-        'fields': 'review'
-    }
-    try:
-        response = requests.get(url, params=params)
-        response.raise_for_status()
-        data = response.json()
-
-        reviews = data.get('result', {}).get('reviews', [])
-        return reviews
-    except Exception as e:
-        print(f"Error fetching reviews for place_id {place_id}: {e}")
-        return []
