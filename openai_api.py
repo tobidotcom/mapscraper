@@ -1,5 +1,5 @@
-# Contents of openai_api.py
 import requests
+import logging
 
 def get_postal_codes(city, openai_api_key):
     url = "https://api.openai.com/v1/chat/completions"
@@ -16,8 +16,24 @@ def get_postal_codes(city, openai_api_key):
         "max_tokens": 100
     }
     response = requests.post(url, headers=headers, json=data)
-    if response.status_code == 200:
+    
+    try:
+        response.raise_for_status()
         postal_codes_str = response.json()["choices"][0]["message"]["content"]
-        return [code.strip() for code in postal_codes_str.split(",")]
-    else:
-        raise Exception(f"Error fetching postal codes: {response.status_code} {response.text}")
+        
+        # Validate the response to ensure it's a list of postal codes
+        postal_codes = [code.strip() for code in postal_codes_str.split(",") if code.strip().isdigit()]
+        
+        if not postal_codes:
+            raise ValueError("No valid postal codes found in the response.")
+        
+        return postal_codes
+    except Exception as e:
+        logging.error(f"Error fetching postal codes: {e}")
+        return []
+
+# Test function to see output
+if __name__ == "__main__":
+    test_city = "New York"
+    test_api_key = "YOUR_OPENAI_API_KEY"
+    print(get_postal_codes(test_city, test_api_key))
