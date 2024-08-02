@@ -4,7 +4,10 @@ from google_maps import search_google_maps
 from openai_api import get_postal_codes, evaluate_businesses
 from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results
-from web_scraper import scrape_website, get_business_reviews
+
+def get_postal_codes_for_area(user_address, openai_api_key):
+    # Generate postal codes for the user’s area using OpenAI
+    return get_postal_codes(user_address, openai_api_key)
 
 def process_postal_code(postal_code, query, api_key):
     st.write(f"Searching in postal code: {postal_code}")
@@ -12,28 +15,35 @@ def process_postal_code(postal_code, query, api_key):
     return businesses
 
 def main():
-    st.title("Lead Generation Tool")
+    st.title("1001Leads - Cold Calling Challenge")
 
     st.sidebar.header("Settings")
     google_maps_api_key = st.sidebar.text_input("Google Maps API Key", type="password")
     gohighlevel_api_key = st.sidebar.text_input("GoHighLevel API Key", type="password")
     openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
 
-    query = st.text_input("Query")
-    city = st.text_input("City")
+    business_description = st.text_area("Describe Your Business and Services")
+    user_website = st.text_input("Optional: Your Website")
+    user_address = st.text_input("Your Business Address")
 
-    if st.button("Search"):
+    if st.button("Generate Leads"):
         if not google_maps_api_key:
-            st.error("Please enter a valid Google Maps API key in the settings.")
+            st.error("Please enter a valid Google Maps API key.")
         elif not gohighlevel_api_key:
-            st.error("Please enter a valid GoHighLevel API key in the settings.")
+            st.error("Please enter a valid GoHighLevel API key.")
         elif not openai_api_key:
-            st.error("Please enter a valid OpenAI API key in the settings.")
+            st.error("Please enter a valid OpenAI API key.")
+        elif not user_address:
+            st.error("Please enter your business address.")
         else:
-            postal_codes = get_postal_codes(city, openai_api_key)
+            # Get the postal codes for the user’s area
+            postal_codes = get_postal_codes_for_area(user_address, openai_api_key)
             if not postal_codes:
-                st.error("Could not retrieve postal codes. Please check your OpenAI API key and city name.")
+                st.error("Could not retrieve postal codes. Please check your OpenAI API key and business address.")
                 return
+
+            # Construct the query based on user input
+            query = f"{business_description} in {user_address}"
 
             all_businesses = []
             
@@ -47,42 +57,29 @@ def main():
                     except Exception as exc:
                         st.error(f"Error occurred while processing postal code {postal_code}: {exc}")
 
-            # Remove duplicates
-            unique_businesses = {b['name'] + b['address']: b for b in all_businesses}.values()
-            unique_businesses = list(unique_businesses)  # Convert to list if needed
+            if not all_businesses:
+                st.error("No businesses found. Please refine your search.")
+                return
 
-            # Debugging: Print the unique_businesses to see its content
-            st.write("Unique businesses:", unique_businesses)
+            # Calculate lead scores
+            for business in all_businesses:
+                business["lead_score"] = calculate_lead_score(business)
             
-            # Check if unique_businesses is empty
-            if not unique_businesses:
-                st.error("No businesses found. Please try different search criteria.")
-                return
+            # Sort businesses by lead score and pick top 1001
+            top_businesses = sorted(all_businesses, key=lambda x: x["lead_score"], reverse=True)[:1001]
 
-            # Save businesses to CSV for evaluation
-            csv_file_path = "businesses.csv"
-            try:
-                save_to_csv(unique_businesses, csv_file_path)
-                st.success(f"Saved {len(unique_businesses)} results to {csv_file_path}")
-            except ValueError as e:
-                st.error(f"Error saving data to CSV: {e}")
-                return
+            # Save to CSV and display results
+            save_to_csv(top_businesses, "top_businesses.csv")
+            st.success(f"Saved {len(top_businesses)} top leads to top_businesses.csv")
+            display_results(top_businesses, st)
 
-            # Evaluate businesses using OpenAI
-            evaluation_result = evaluate_businesses(csv_file_path, openai_api_key)
-            st.write(f"**Evaluation Result:** {evaluation_result}")
-
-            # Display results
-            display_results(unique_businesses, st)
-
-            st.session_state.businesses = unique_businesses
-
-            business_names = [f"{business['name']} - {business['address']}" for business in unique_businesses]
+            # Adding selected businesses to GoHighLevel
+            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in top_businesses]
             selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names)
             
             if st.button("Add Selected to GoHighLevel"):
-                for business in unique_businesses:
-                    business_str = f"{business['name']} - {business['address']}"
+                for business in top_businesses:
+                    business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
                     if business_str in selected_businesses:
                         contact = {
                             "firstName": business["name"],
@@ -96,4 +93,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
