@@ -25,15 +25,15 @@ def get_postal_codes(address, openai_api_key):
     
     return postal_codes
 
-def evaluate_businesses(description, website_content, address, openai_api_key):
+def evaluate_businesses(description, address, openai_api_key):
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {openai_api_key}",
         "Content-Type": "application/json"
     }
     messages = [
-        {"role": "system", "content": "You are an expert in B2B lead generation and niche analysis, with a focus on specific business services for distinct industries."},
-        {"role": "user", "content": f"Based on the business description, website content, and address provided, list the top 10 specific B2B niches that combine particular business services with specific industries. For example, 'SEO Services for Landscapers' or 'PPC Advertising for Fitness Centers.' The list should be comma-separated and contain only the niche names, with no additional text.\n\nBusiness Description: {description}\nWebsite Content: {website_content}\nAddress: {address}"}
+        {"role": "system", "content": "You are an expert in B2B lead generation and niche analysis, focusing on specific business services for distinct industries."},
+        {"role": "user", "content": f"Based on the business description and address provided, list the top 10 specific B2B niches that combine particular business services with specific industries, which can be found on Google My Business. For example, 'SEO Services for Landscapers' or 'PPC Advertising for Fitness Centers.' The list should be comma-separated and contain only the niche names, with no additional text.\n\nBusiness Description: {description}\nAddress: {address}"}
     ]
     data = {
         "model": "gpt-3.5-turbo",
@@ -46,8 +46,11 @@ def evaluate_businesses(description, website_content, address, openai_api_key):
 
     if result.get("choices"):
         niches = result["choices"][0]["message"]["content"].strip()
-        # Assuming niches are provided as a comma-separated list
         niche_list = [niche.strip() for niche in niches.split(',')]
+        return niche_list
+    else:
+        return []
+
         return niche_list
     else:
         return []
