@@ -4,7 +4,6 @@ from google_maps import search_google_maps
 from openai_api import get_postal_codes, evaluate_businesses
 from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results, calculate_lead_score
-from web_scraper import scrape_website
 
 def get_postal_codes_for_area(user_address, openai_api_key):
     return get_postal_codes(user_address, openai_api_key)
@@ -23,7 +22,6 @@ def main():
     openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
 
     business_description = st.text_area("Describe Your Business and Services")
-    user_website = st.text_input("Optional: Your Website")
     user_address = st.text_input("Your Business Address")
 
     if st.button("Generate Niches"):
@@ -34,15 +32,9 @@ def main():
         elif not user_address:
             st.error("Please enter your business address.")
         else:
-            # Get website content if URL is provided
-            website_content = ""
-            if user_website:
-                website_data = scrape_website(user_website)
-                website_content = website_data.get("website_content", "")
-
             # Get niche suggestions from OpenAI
             st.write("Generating niche suggestions...")
-            niche_suggestions = evaluate_businesses(business_description, website_content, user_address, openai_api_key)
+            niche_suggestions = evaluate_businesses(business_description, user_address, openai_api_key)
             if not niche_suggestions:
                 st.error("Could not retrieve niche suggestions. Please check your OpenAI API key and business details.")
                 return
@@ -120,6 +112,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
