@@ -89,14 +89,5 @@ async def main():
             display_results(filtered_businesses, st)
 
             # Adding selected businesses to GoHighLevel
-            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in filtered_businesses]
-            selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names, key="selected_businesses_multiselect")
+            business_names = [f"{business['name']} - {
 
-            if st.button("Add Selected to GoHighLevel", key="add_to_gohighlevel_button"):
-                for business in filtered_businesses:
-                    business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
-                    if business_str in selected_businesses:
-                        contact = {
-                            "firstName": business["name"],
-                            "address1": business["address"],
-             
