@@ -3,14 +3,14 @@ import pandas as pd
 
 def save_to_csv(businesses, filename):
     if not businesses:
-        return
+        raise ValueError("No businesses data to save.")
 
-    # Dynamically get fieldnames from the keys of the first business
-    fieldnames = set()
+    # Get all possible fieldnames from the first business
+    all_fieldnames = set()
     for business in businesses:
-        fieldnames.update(business.keys())
-
-    fieldnames = list(fieldnames)
+        all_fieldnames.update(business.keys())
+    
+    fieldnames = sorted(list(all_fieldnames))
     
     with open(filename, "w", newline="") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -28,13 +28,13 @@ def display_results(businesses, streamlit_instance):
 
 def calculate_lead_score(business):
     score = 0
-    if business.get("website"):
+    if business["website"]:
         score += 20
-    if business.get("phone"):
+    if business["phone"]:
         score += 10
-    score += business.get("rating", 0) * 10
-    if business.get("user_ratings_total", 0) > 10:
+    score += business["rating"] * 10
+    if business["user_ratings_total"] > 10:
         score += 20
-    if business.get("user_ratings_total", 0) > 50:
+    if business["user_ratings_total"] > 50:
         score += 30
     return score
