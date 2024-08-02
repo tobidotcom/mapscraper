@@ -70,20 +70,20 @@ def main():
             for business in all_businesses:
                 business["lead_score"] = calculate_lead_score(business)
             
-            # Sort businesses by lead score and pick top 1001
-            top_businesses = sorted(all_businesses, key=lambda x: x["lead_score"], reverse=True)[:1001]
+            # Sort businesses by lead score
+            sorted_businesses = sorted(all_businesses, key=lambda x: x["lead_score"], reverse=True)
 
-            # Save to CSV and display results
-            save_to_csv(top_businesses, "top_businesses.csv")
-            st.success(f"Saved {len(top_businesses)} top leads to top_businesses.csv")
-            display_results(top_businesses, st)
+            # Save to CSV and display all results
+            save_to_csv(sorted_businesses, "all_businesses.csv")
+            st.success(f"Saved {len(sorted_businesses)} leads to all_businesses.csv")
+            display_results(sorted_businesses, st)
 
             # Adding selected businesses to GoHighLevel
-            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in top_businesses]
+            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in sorted_businesses]
             selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names)
             
             if st.button("Add Selected to GoHighLevel"):
-                for business in top_businesses:
+                for business in sorted_businesses:
                     business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
                     if business_str in selected_businesses:
                         contact = {
