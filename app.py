@@ -1,27 +1,49 @@
 import streamlit as st
 import csv
 import requests
+import pandas as pd
+
+# Function to get place details from Google Maps Places API
+def get_place_details(place_id, api_key):
+    url = "https://maps.googleapis.com/maps/api/place/details/json"
+    params = {
+        "place_id": place_id,
+        "fields": "formatted_phone_number,website",
+        "key": api_key
+    }
+
+    response = requests.get(url, params=params)
+    details_data = response.json()
+    
+    if details_data.get("result"):
+        phone = details_data["result"].get("formatted_phone_number", "")
+        website = details_data["result"].get("website", "")
+    else:
+        phone = ""
+        website = ""
+    
+    return phone, website
 
 # Function to search Google Maps and extract business information
 def search_google_maps(query, location, api_key):
-    # Construct the URL for the Google Maps Places API search request
     url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
     params = {
         "query": f"{query} in {location}",
         "key": api_key
     }
 
-    # Send an HTTP request to the URL and get the JSON response
     response = requests.get(url, params=params)
     data = response.json()
 
-    # Extract the business information from the JSON response
     businesses = []
     for result in data["results"]:
         name = result["name"]
         address = result["formatted_address"]
-        phone = result.get("formatted_phone_number", "")
-        website = result.get("website", "")
+        place_id = result["place_id"]
+        
+        # Get additional details for each place
+        phone, website = get_place_details(place_id, api_key)
+        
         businesses.append({"name": name, "address": address, "phone": phone, "website": website})
 
     return businesses
@@ -64,5 +86,4 @@ def main():
             display_results(businesses)
 
 if __name__ == "__main__":
-    import pandas as pd
     main()
