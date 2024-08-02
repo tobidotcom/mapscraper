@@ -1,149 +1,15 @@
 import streamlit as st
-import csv
-import requests
-import pandas as pd
-import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from google_maps import search_google_maps
+from openai import get_postal_codes
+from gohighlevel import add_contact_to_gohighlevel
+from utils import save_to_csv, display_results, calculate_lead_score
 
-# Function to get place details from Google Maps Places API
-def get_place_details(place_id, api_key):
-    url = "https://maps.googleapis.com/maps/api/place/details/json"
-    params = {
-        "place_id": place_id,
-        "fields": "formatted_phone_number,website",
-        "key": api_key
-    }
-
-    response = requests.get(url, params=params)
-    details_data = response.json()
-    
-    if details_data.get("result"):
-        phone = details_data["result"].get("formatted_phone_number", "")
-        website = details_data["result"].get("website", "")
-    else:
-        phone = ""
-        website = ""
-    
-    return phone, website
-
-# Function to search Google Maps and extract business information
-def search_google_maps(query, location, api_key):
-    url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
-    params = {
-        "query": f"{query} in {location}",
-        "key": api_key
-    }
-
-    businesses = []
-    while True:
-        response = requests.get(url, params=params)
-        data = response.json()
-        
-        for result in data["results"]:
-            name = result["name"]
-            address = result["formatted_address"]
-            place_id = result["place_id"]
-            rating = result.get("rating", 0)
-            user_ratings_total = result.get("user_ratings_total", 0)
-            
-            # Get additional details for each place
-            phone, website = get_place_details(place_id, api_key)
-            
-            businesses.append({
-                "name": name, 
-                "address": address, 
-                "phone": phone, 
-                "website": website,
-                "rating": rating,
-                "user_ratings_total": user_ratings_total
-            })
-
-        if 'next_page_token' not in data:
-            break
-
-        next_page_token = data['next_page_token']
-        params['pagetoken'] = next_page_token
-
-        # Google Maps Places API enforces a short delay before fetching the next page
-        time.sleep(2)
-
-    return businesses
-
-# Function to call OpenAI API and get postal codes
-def get_postal_codes(city, openai_api_key):
-    url = "https://api.openai.com/v1/chat/completions"
-    headers = {
-        "Authorization": f"Bearer {openai_api_key}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "model": "gpt-3.5-turbo",
-        "messages": [
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": f"List all postal codes for {city} in a comma-separated list format. Do only respond with the list, nothing else."}
-        ],
-        "max_tokens": 500
-    }
-    response = requests.post(url, headers=headers, json=data)
-    result = response.json()
-
-    postal_codes = []
-    if result.get("choices"):
-        postal_codes = result["choices"][0]["message"]["content"]
-        postal_codes = postal_codes.strip().split(',')
-        postal_codes = [code.strip() for code in postal_codes]
-    
-    return postal_codes
-
-# Function to save the extracted data to a CSV file
-def save_to_csv(businesses, filename):
-    with open(filename, "w", newline="") as csvfile:
-        fieldnames = ["name", "address", "phone", "website", "rating", "user_ratings_total", "lead_score"]
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
-        for business in businesses:
-            writer.writerow(business)
-
-# Function to display the results in a table
-def display_results(businesses):
-    st.write("## Search Results")
-    if businesses:
-        df = pd.DataFrame(businesses)
-        st.dataframe(df)
-    else:
-        st.write("No results found.")
-
-# Function to add a contact to GoHighLevel
-def add_contact_to_gohighlevel(api_key, contact):
-    url = "https://rest.gohighlevel.com/v1/contacts/"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    response = requests.post(url, json=contact, headers=headers)
-    return response.json()
-
-# Function to calculate lead score
-def calculate_lead_score(business):
-    score = 0
-    if business["website"]:
-        score += 20
-    if business["phone"]:
-        score += 10
-    score += business["rating"] * 10
-    if business["user_ratings_total"] > 10:
-        score += 20
-    if business["user_ratings_total"] > 50:
-        score += 30
-    return score
-
-# Function to process a single postal code
 def process_postal_code(postal_code, query, api_key):
     st.write(f"Searching in postal code: {postal_code}")
     businesses = search_google_maps(query, postal_code, api_key)
     return businesses
 
-# Main function to handle the Streamlit app
 def main():
     st.title("Lead Generation Tool")
 
@@ -189,7 +55,7 @@ def main():
             
             save_to_csv(unique_businesses, "businesses.csv")
             st.success(f"Saved {len(unique_businesses)} results to businesses.csv")
-            display_results(unique_businesses)
+            display_results(unique_businesses, st)
             
             business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in unique_businesses]
             selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names)
@@ -209,3 +75,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
