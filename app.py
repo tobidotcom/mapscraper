@@ -5,6 +5,13 @@ from openai_api import get_postal_codes
 from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results, calculate_lead_score
 
+def fetch_businesses_for_postal_code(search_query, postal_code, google_maps_api_key):
+    try:
+        return search_google_maps(search_query, postal_code, google_maps_api_key)
+    except Exception as e:
+        st.error(f"Error fetching data for postal code {postal_code}: {e}")
+        return []
+
 def main():
     st.title("1001Leads - Cold Calling Challenge")
 
@@ -32,33 +39,29 @@ def main():
                 st.error("Could not retrieve postal codes. Please check your OpenAI API key and city.")
                 return
 
-            # Limit the number of postal codes to process at a time
-            max_postal_codes = 10
             all_businesses = []
 
             # Create a progress bar
             progress_bar = st.progress(0)
-            total_batches = (len(postal_codes) + max_postal_codes - 1) // max_postal_codes  # Calculate total number of batches
+            total_postal_codes = len(postal_codes)
+            progress_step = 100 / total_postal_codes if total_postal_codes else 1
 
-            for i in range(0, len(postal_codes), max_postal_codes):
-                batch_postal_codes = postal_codes[i:i + max_postal_codes]
+            # Process postal codes with multithreading
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures_to_postal_code = {executor.submit(fetch_businesses_for_postal_code, search_query, postal_code, google_maps_api_key): postal_code for postal_code in postal_codes}
 
-                with ThreadPoolExecutor(max_workers=5) as executor:
-                    future_to_postal_code = {executor.submit(search_google_maps, search_query, postal_code, google_maps_api_key): postal_code for postal_code in batch_postal_codes}
-                    for future in as_completed(future_to_postal_code):
-                        postal_code = future_to_postal_code[future]
-                        try:
-                            businesses = future.result()
-                            all_businesses.extend(businesses)
-                        except Exception as exc:
-                            st.error(f"Error occurred while processing postal code {postal_code}: {exc}")
-
-                # Update the progress bar
-                progress = (i // max_postal_codes + 1) / total_batches
-                progress_bar.progress(progress)
+                for i, future in enumerate(as_completed(futures_to_postal_code)):
+                    postal_code = futures_to_postal_code[future]
+                    try:
+                        businesses = future.result()
+                        all_businesses.extend(businesses)
+                        progress = (i + 1) * progress_step
+                        progress_bar.progress(progress)
+                    except Exception as exc:
+                        st.error(f"Error occurred while processing postal code {postal_code}: {exc}")
 
             # Ensure progress bar completes
-            progress_bar.progress(1.0)
+            progress_bar.progress(100)
 
             if not all_businesses:
                 st.error("No businesses found. Please refine your search.")
@@ -96,3 +99,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
