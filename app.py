@@ -4,29 +4,11 @@ from google_maps import search_google_maps
 from openai import get_postal_codes
 from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results, calculate_lead_score
-from web_scraper import scrape_website, get_business_reviews, get_best_email_from_openai
 
 def process_postal_code(postal_code, query, api_key):
     st.write(f"Searching in postal code: {postal_code}")
     businesses = search_google_maps(query, postal_code, api_key)
     return businesses
-
-def enrich_data(businesses, google_maps_api_key, openai_api_key):
-    enriched_businesses = []
-    for business in businesses:
-        if "place_id" in business and business.get("website"):
-            try:
-                scrape_data = scrape_website(business["website"])
-                reviews = get_business_reviews(business["place_id"], google_maps_api_key)
-                best_email = get_best_email_from_openai(scrape_data["website_content"], reviews, openai_api_key)
-                business.update(scrape_data)
-                business["best_email"] = best_email
-            except Exception as e:
-                st.error(f"Error enriching data for business {business['name']}: {e}")
-        else:
-            st.warning(f"Business {business.get('name', 'Unknown')} does not have a place_id or website.")
-        enriched_businesses.append(business)
-    return enriched_businesses
 
 def main():
     st.title("Lead Generation Tool")
@@ -85,27 +67,17 @@ def main():
                     business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
                     if business_str in selected_businesses:
                         contact = {
-                            "firstName": business["name"],
+                            "companyName": business["name"],  # Add company name to the contact
+                            "firstName": business["name"],  # Assuming first name is the company name
                             "address1": business["address"],
                             "phone": business["phone"],
                             "website": business["website"],
-                            "email": business.get('best_email', '')
+                            "email": business.get('email', '')  # Use 'email' field if available
                         }
                         response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
                         st.write(f"Added contact: {response}")
 
-    if st.button("Enrich Data"):
-        if 'businesses' not in st.session_state:
-            st.error("No businesses found. Please perform a search first.")
-        else:
-            try:
-                enriched_businesses = enrich_data(st.session_state.businesses, google_maps_api_key, openai_api_key)
-                save_to_csv(enriched_businesses, "enriched_businesses.csv")
-                st.success(f"Saved enriched data to enriched_businesses.csv")
-                display_results(enriched_businesses, st)
-            except Exception as e:
-                st.error(f"Error enriching data: {e}")
-
 if __name__ == "__main__":
     main()
+
 
