@@ -31,6 +31,10 @@ def main():
     query = st.text_input("Query")
     city = st.text_input("City")
 
+    # Initialize session state for persistent data
+    if 'businesses' not in st.session_state:
+        st.session_state.businesses = []
+
     if st.button("Search"):
         if not google_maps_api_key:
             st.error("Please enter a valid Google Maps API key in the settings.")
@@ -70,6 +74,8 @@ def main():
         for business in unique_businesses:
             business["lead_score"] = calculate_lead_score(business)
         
+        st.session_state.businesses = unique_businesses  # Store businesses in session state
+
         save_to_csv(unique_businesses, "businesses.csv")
         st.success(f"Saved {len(unique_businesses)} results to businesses.csv")
         display_results(unique_businesses, st)
@@ -91,15 +97,15 @@ def main():
                     response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
                     st.write(f"Added contact: {response}")
 
-        if st.button("Enrich Data"):
-            if not any(business.get("website") for business in unique_businesses):
-                st.warning("No businesses with websites found to enrich.")
-                return
-            
-            enriched_businesses = enrich_data(unique_businesses, openai_api_key)
-            save_to_csv(enriched_businesses, "enriched_businesses.csv")
-            st.success(f"Saved enriched data to enriched_businesses.csv")
-            display_results(enriched_businesses, st)
+    if st.button("Enrich Data"):
+        if not st.session_state.businesses:
+            st.warning("No businesses to enrich. Please perform a search first.")
+            return
+        
+        enriched_businesses = enrich_data(st.session_state.businesses, openai_api_key)
+        save_to_csv(enriched_businesses, "enriched_businesses.csv")
+        st.success(f"Saved enriched data to enriched_businesses.csv")
+        display_results(enriched_businesses, st)
 
 if __name__ == "__main__":
     main()
