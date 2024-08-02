@@ -1,4 +1,5 @@
-import requests
+import openai
+import pandas as pd
 
 def get_postal_codes(city, openai_api_key):
     url = "https://api.openai.com/v1/chat/completions"
@@ -24,3 +25,31 @@ def get_postal_codes(city, openai_api_key):
         postal_codes = [code.strip() for code in postal_codes]
     
     return postal_codes
+
+def evaluate_businesses(file_path, openai_api_key):
+    openai.api_key = openai_api_key
+    
+    # Load the data from CSV
+    df = pd.read_csv(file_path)
+    businesses = df.to_dict(orient='records')
+    
+    # Create a prompt for OpenAI
+    prompt = "Evaluate the following businesses and rank them based on their potential to benefit from GoHighLevel services. Consider factors like star rating, number of reviews, and overall reviews text.\n\n"
+    for business in businesses:
+        prompt += f"Business Name: {business['name']}\n"
+        prompt += f"Address: {business['address']}\n"
+        prompt += f"Rating: {business['rating']}\n"
+        prompt += f"Number of Reviews: {business['reviews_count']}\n"
+        prompt += f"Reviews: {business['reviews_text']}\n\n"
+    
+    prompt += "Rank these businesses from the best to worst based on the potential to work with GoHighLevel.\n\n"
+
+    # Send the prompt to OpenAI
+    response = openai.Completion.create(
+        model="text-davinci-003",  # Use the latest or appropriate model
+        prompt=prompt,
+        max_tokens=1500,
+        temperature=0.5
+    )
+
+    return response.choices[0
