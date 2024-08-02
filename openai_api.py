@@ -52,4 +52,5 @@ def evaluate_businesses(file_path, openai_api_key):
         temperature=0.5
     )
 
-    return response.choices[0
+    return response.choices[0].text.strip()
+
