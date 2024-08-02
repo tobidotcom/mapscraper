@@ -44,6 +44,7 @@ async def main():
             if not postal_codes:
                 st.error("Could not retrieve postal codes. Please check your OpenAI API key and city.")
                 return
+            logging.debug(f"Retrieved postal codes: {postal_codes}")
 
             all_businesses = []
 
@@ -57,11 +58,14 @@ async def main():
                 for i, future in enumerate(asyncio.as_completed(tasks)):
                     try:
                         businesses = await future
+                        if businesses:
+                            logging.debug(f"Businesses found for postal code: {businesses}")
                         all_businesses.extend(businesses)
                         progress = (i + 1) / total_postal_codes  # Calculate progress as a fraction
                         progress_bar.progress(progress)  # Update the progress bar with a fraction
                     except Exception as exc:
                         st.error(f"Error occurred while processing postal code: {exc}")
+                        logging.error(f"Error occurred while processing postal code: {exc}")
 
             # Ensure progress bar completes
             progress_bar.progress(1.0)
