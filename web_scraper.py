@@ -1,78 +1,74 @@
 import requests
 from bs4 import BeautifulSoup
 import re
-import openai
-
-def find_emails(text):
-    # Enhanced regex patterns for finding email addresses
-    email_patterns = [
-        r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',  # Standard email pattern
-        r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+(?:\.[a-zA-Z]{2,})+',  # Handles some edge cases
-    ]
-    
-    emails = set()
-    for pattern in email_patterns:
-        emails.update(re.findall(pattern, text))
-    
-    return emails
-
-def get_best_email_from_openai(emails, page_content, openai_api_key):
-    prompt = f"""
-    I have extracted the following email addresses from a webpage. 
-    The content of the webpage is also provided. 
-    Based on this information, which email address is likely the best for reaching out to the business?
-
-    Webpage Content: {page_content}
-    
-    Email Addresses: {', '.join(emails)}
-
-    Please choose the most relevant email address.
-    """
-
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You are a helpful assistant."},
-            {"role": "user", "content": prompt}
-        ],
-        api_key=openai_api_key
-    )
-    
-    result = response.choices[0].message['content'].strip()
-    return result
 
 def scrape_website(url, openai_api_key):
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+    
     try:
-        response = requests.get(url)
-        response.raise_for_status()  # Raise HTTPError for bad responses
-        soup = BeautifulSoup(response.text, 'html.parser')
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.RequestException as e:
+        return {"error": f"Failed to fetch website: {str(e)}"}
+
+    soup = BeautifulSoup(response.text, 'html.parser')
+
+    emails = extract_emails(soup)
+    best_email = select_best_email(emails, openai_api_key) if emails else None
+
+    return {
+        "emails": emails,
+        "best_email": best_email
+    }
+
+def extract_emails(soup):
+    """Extracts email addresses from the HTML soup."""
+    emails = set()
+    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+    
+    for script in soup(['script', 'style']):
+        script.decompose()
+    
+    text = soup.get_text()
+    emails.update(re.findall(email_pattern, text))
+    
+    return list(emails)
+
+def select_best_email(emails, openai_api_key):
+    """Selects the best email address using OpenAI API."""
+    if not emails:
+        return None
+
+    url = "https://api.openai.com/v1/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {openai_api_key}",
+        "Content-Type": "application/json"
+    }
+    messages = [
+        {"role": "system", "content": "You are an email analysis assistant."},
+        {"role": "user", "content": f"Given the following list of email addresses, choose the best one to contact: {', '.join(emails)}"}
+    ]
+    data = {
+        "model": "gpt-3.5-turbo",
+        "messages": messages,
+        "max_tokens": 50
+    }
+
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        response.raise_for_status()
+        result = response.json()
         
-        # Extract email addresses
-        emails = find_emails(soup.get_text())
+        # Ensure 'choices' and 'message' keys exist
+        best_email = result.get('choices', [{}])[0].get('message', {}).get('content', '').strip()
         
-        # Example: Extract the title and meta description
-        title = soup.title.string if soup.title else 'No title'
-        meta_description = soup.find('meta', attrs={'name': 'description'})
-        description = meta_description['content'] if meta_description else 'No description'
-        
-        # Extract additional contact info from common tags
-        contact_info = soup.find_all('a', href=True)
-        contact_links = [a['href'] for a in contact_info if 'mailto:' in a['href']]
-        contact_emails = [link.replace('mailto:', '') for link in contact_links]
-        
-        # Combine all emails found
-        all_emails = set(emails | set(contact_emails))
-        
-        # Get the best email address from OpenAI
-        best_email = get_best_email_from_openai(all_emails, soup.get_text(), openai_api_key)
-        
-        return {
-            'title': title,
-            'description': description,
-            'best_email': best_email,
-            'all_emails': ', '.join(all_emails)
-        }
-    except Exception as e:
-        return {
-            'error': str(e)
-        }
+        if best_email in emails:
+            return best_email
+        else:
+            return emails[0]  # Fallback to the first email if the response is invalid
+    except requests.RequestException as e:
+        return emails[0]  # Fallback to the first email in case of an error
+    except (KeyError, IndexError):
+        return emails[0]  # Fallback to the first email if the response structure is not as expected
