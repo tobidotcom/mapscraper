@@ -2,6 +2,7 @@
 import streamlit as st
 import asyncio
 import aiohttp
+import logging
 from google_maps import search_google_maps
 from openai_api import get_postal_codes
 from gohighlevel import add_contact_to_gohighlevel
@@ -16,8 +17,17 @@ async def fetch_businesses_for_postal_code(search_query, postal_code, google_map
             return api_cache[(search_query, postal_code)]
         else:
             businesses = await search_google_maps(search_query, postal_code, google_maps_api_key, session)
-            api_cache[(search_query, postal_code)] = businesses
-            return businesses
+            
+            # Validate data before caching
+            validated_businesses = []
+            for business in businesses:
+                if all(isinstance(business[key], (str, int, float)) for key in business.values()):
+                    validated_businesses.append(business)
+                else:
+                    logging.debug(f"Invalid business data: {business}")
+            
+            api_cache[(search_query, postal_code)] = validated_businesses
+            return validated_businesses
     except Exception as e:
         st.error(f"Error fetching data for postal code {postal_code}: {e}")
         return []
