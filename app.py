@@ -2,6 +2,7 @@ import streamlit as st
 import csv
 import requests
 import pandas as pd
+import time
 
 # Function to get place details from Google Maps Places API
 def get_place_details(place_id, api_key):
@@ -32,28 +33,38 @@ def search_google_maps(query, location, api_key):
         "key": api_key
     }
 
-    response = requests.get(url, params=params)
-    data = response.json()
-
     businesses = []
-    for result in data["results"]:
-        name = result["name"]
-        address = result["formatted_address"]
-        place_id = result["place_id"]
-        rating = result.get("rating", 0)
-        user_ratings_total = result.get("user_ratings_total", 0)
+    while True:
+        response = requests.get(url, params=params)
+        data = response.json()
         
-        # Get additional details for each place
-        phone, website = get_place_details(place_id, api_key)
-        
-        businesses.append({
-            "name": name, 
-            "address": address, 
-            "phone": phone, 
-            "website": website,
-            "rating": rating,
-            "user_ratings_total": user_ratings_total
-        })
+        for result in data["results"]:
+            name = result["name"]
+            address = result["formatted_address"]
+            place_id = result["place_id"]
+            rating = result.get("rating", 0)
+            user_ratings_total = result.get("user_ratings_total", 0)
+            
+            # Get additional details for each place
+            phone, website = get_place_details(place_id, api_key)
+            
+            businesses.append({
+                "name": name, 
+                "address": address, 
+                "phone": phone, 
+                "website": website,
+                "rating": rating,
+                "user_ratings_total": user_ratings_total
+            })
+
+        if 'next_page_token' not in data:
+            break
+
+        next_page_token = data['next_page_token']
+        params['pagetoken'] = next_page_token
+
+        # Google Maps Places API enforces a short delay before fetching the next page
+        time.sleep(2)
 
     return businesses
 
