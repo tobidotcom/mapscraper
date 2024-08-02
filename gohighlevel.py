@@ -1,4 +1,3 @@
-# Contents of gohighlevel.py
 import requests
 
 def add_contact_to_gohighlevel(api_key, contact):
