@@ -1,6 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
 import re
+import openai
 
 def extract_emails_from_text(text):
     email_regex = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
@@ -17,7 +18,7 @@ def extract_emails_from_soup(soup):
                 emails.add(href.split('mailto:')[1])
     return list(emails)
 
-def scrape_website(url, openai_api_key=None):
+def scrape_website(url):
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
@@ -62,8 +63,6 @@ def get_business_reviews(place_id, google_maps_api_key):
     return reviews
 
 def get_best_email_from_openai(website_content, reviews, openai_api_key):
-    import openai
-
     openai.api_key = openai_api_key
 
     prompt = (f"Given the following content from a website and customer reviews, "
@@ -80,4 +79,3 @@ def get_best_email_from_openai(website_content, reviews, openai_api_key):
     
     email = response.choices[0].message["content"].strip()
     return email if email else None
-
