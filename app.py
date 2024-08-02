@@ -44,7 +44,6 @@ def main():
             # Create a progress bar
             progress_bar = st.progress(0)
             total_postal_codes = len(postal_codes)
-            progress_step = 100 / total_postal_codes if total_postal_codes else 1
 
             # Process postal codes with multithreading
             with ThreadPoolExecutor(max_workers=10) as executor:
@@ -55,13 +54,13 @@ def main():
                     try:
                         businesses = future.result()
                         all_businesses.extend(businesses)
-                        progress = (i + 1) * progress_step
-                        progress_bar.progress(progress)
+                        progress = (i + 1) / total_postal_codes  # Calculate progress as a fraction
+                        progress_bar.progress(progress)  # Update the progress bar with a fraction
                     except Exception as exc:
                         st.error(f"Error occurred while processing postal code {postal_code}: {exc}")
 
             # Ensure progress bar completes
-            progress_bar.progress(100)
+            progress_bar.progress(1.0)
 
             if not all_businesses:
                 st.error("No businesses found. Please refine your search.")
