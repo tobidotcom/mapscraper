@@ -9,14 +9,14 @@ def main():
     st.title("1001Leads - Cold Calling Challenge")
 
     st.sidebar.header("Settings")
-    google_maps_api_key = st.sidebar.text_input("Google Maps API Key", type="password")
-    gohighlevel_api_key = st.sidebar.text_input("GoHighLevel API Key", type="password")
-    openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password")
+    google_maps_api_key = st.sidebar.text_input("Google Maps API Key", type="password", key="google_maps_api_key")
+    gohighlevel_api_key = st.sidebar.text_input("GoHighLevel API Key", type="password", key="gohighlevel_api_key")
+    openai_api_key = st.sidebar.text_input("OpenAI API Key", type="password", key="openai_api_key")
 
-    search_query = st.text_input("Enter your search query (e.g., plumbers, landscapers)")
-    user_city = st.text_input("Enter your city")
+    search_query = st.text_input("Enter your search query (e.g., plumbers, landscapers)", key="search_query")
+    user_city = st.text_input("Enter your city", key="user_city")
 
-    if st.button("Generate Leads"):
+    if st.button("Generate Leads", key="generate_leads"):
         if not google_maps_api_key:
             st.error("Please enter a valid Google Maps API key.")
         elif not gohighlevel_api_key:
@@ -64,9 +64,9 @@ def main():
 
             # Adding selected businesses to GoHighLevel
             business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in top_businesses]
-            selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names)
+            selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names, key="selected_businesses")
             
-            if st.button("Add Selected to GoHighLevel"):
+            if st.button("Add Selected to GoHighLevel", key="add_to_gohighlevel"):
                 for business in top_businesses:
                     business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
                     if business_str in selected_businesses:
@@ -83,7 +83,5 @@ def main():
 if __name__ == "__main__":
     main()
 
-if __name__ == "__main__":
-    main()
 
 
