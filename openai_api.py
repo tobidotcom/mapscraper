@@ -1,3 +1,4 @@
+# Contents of openai_api.py
 import requests
 
 def get_postal_codes(city, openai_api_key):
@@ -15,6 +16,9 @@ def get_postal_codes(city, openai_api_key):
         "max_tokens": 1000
     }
     response = requests.post(url, headers=headers, json=data)
+    if response.status_code != 200:
+        raise Exception(f"Error fetching data from OpenAI API: {response.text}")
+
     result = response.json()
 
     postal_codes = []
@@ -22,5 +26,9 @@ def get_postal_codes(city, openai_api_key):
         postal_codes = result["choices"][0]["message"]["content"]
         postal_codes = postal_codes.strip().split(',')
         postal_codes = [code.strip() for code in postal_codes]
-    
+
+    # Check if postal_codes is a list of strings
+    if not all(isinstance(code, str) for code in postal_codes):
+        raise ValueError("Invalid postal codes: postal_codes should be a list of strings")
+
     return postal_codes
