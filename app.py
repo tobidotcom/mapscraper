@@ -5,6 +5,7 @@ from google_maps import search_google_maps
 from openai_api import get_postal_codes, evaluate_businesses
 from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results
+import os
 
 def process_postal_code(postal_code, query, api_key):
     st.write(f"Searching in postal code: {postal_code}")
@@ -50,15 +51,16 @@ def main():
             # Remove duplicates
             unique_businesses = {b['name'] + b['address']: b for b in all_businesses}.values()
 
-            # Save results to CSV
+            # Save businesses to CSV for evaluation
             csv_file_path = "businesses.csv"
-            try:
-                save_to_csv(unique_businesses, csv_file_path)
-                st.success(f"Saved {len(unique_businesses)} results to {csv_file_path}")
-            except ValueError as ve:
-                st.error(str(ve))
-                return
-            
+            save_to_csv(unique_businesses, csv_file_path)
+            st.success(f"Saved {len(unique_businesses)} results to {csv_file_path}")
+
+            # Evaluate businesses using OpenAI
+            evaluation_result = evaluate_businesses(csv_file_path, openai_api_key)
+            st.write(f"**Evaluation Result:** {evaluation_result}")
+
+            # Display results
             display_results(unique_businesses, st)
 
             st.session_state.businesses = unique_businesses
@@ -74,21 +76,12 @@ def main():
                             "firstName": business["name"],
                             "address1": business["address"],
                             "phone": business["phone"],
-                            "website": business["website"]
+                            "website": business["website"],
+                            "email": business.get('best_email', '')
                         }
                         response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
                         st.write(f"Added contact: {response}")
 
-    if st.button("Evaluate Best Leads"):
-        if 'businesses' not in st.session_state:
-            st.error("No businesses found. Please perform a search first.")
-        else:
-            try:
-                evaluation_result = evaluate_businesses("businesses.csv", openai_api_key)
-                st.write("## Evaluation Result")
-                st.write(evaluation_result)
-            except Exception as e:
-                st.error(f"Error evaluating businesses: {e}")
-
 if __name__ == "__main__":
     main()
+
