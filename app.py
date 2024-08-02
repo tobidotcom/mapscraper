@@ -4,6 +4,8 @@ from google_maps import search_google_maps
 from openai import get_postal_codes
 from gohighlevel import add_contact_to_gohighlevel
 from utils import save_to_csv, display_results, calculate_lead_score
+from web_scraper import get_business_reviews
+from openai import evaluate_businesses
 
 def process_postal_code(postal_code, query, api_key):
     st.write(f"Searching in postal code: {postal_code}")
@@ -21,7 +23,7 @@ def main():
     query = st.text_input("Query")
     city = st.text_input("City")
 
-    if st.button("Search"):
+    if st.button("Find Top Leads"):
         if not google_maps_api_key:
             st.error("Please enter a valid Google Maps API key in the settings.")
         elif not gohighlevel_api_key:
@@ -49,12 +51,20 @@ def main():
             # Remove duplicates
             unique_businesses = {b['name'] + b['address']: b for b in all_businesses}.values()
 
-            # Calculate lead score for each business
-            for business in unique_businesses:
-                business["lead_score"] = calculate_lead_score(business)
-            
-            save_to_csv(unique_businesses, "businesses.csv")
-            st.success(f"Saved {len(unique_businesses)} results to businesses.csv")
+            # Save businesses to CSV for OpenAI analysis
+            csv_file_path = "businesses.csv"
+            save_to_csv(unique_businesses, csv_file_path)
+
+            st.success(f"Saved {len(unique_businesses)} results to {csv_file_path}")
+
+            # Evaluate businesses with OpenAI
+            try:
+                evaluation_result = evaluate_businesses(csv_file_path, openai_api_key)
+                st.write("### OpenAI Evaluation Result")
+                st.write(evaluation_result)
+            except Exception as e:
+                st.error(f"Error evaluating businesses: {e}")
+
             display_results(unique_businesses, st)
 
             st.session_state.businesses = unique_businesses
@@ -79,5 +89,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 
