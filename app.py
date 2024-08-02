@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from google_maps import search_google_maps
 from openai_api import get_postal_codes, evaluate_businesses
 from gohighlevel import add_contact_to_gohighlevel
-from utils import save_to_csv, display_results
+from utils import save_to_csv, display_results, calculate_lead_score
 
 def get_postal_codes_for_area(user_address, openai_api_key):
     # Generate postal codes for the user’s area using OpenAI
@@ -93,5 +93,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
