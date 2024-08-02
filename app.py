@@ -14,6 +14,10 @@ def process_postal_code(postal_code, query, api_key):
     businesses = search_google_maps(query, postal_code, api_key)
     return businesses
 
+def get_niche_suggestions(business_description, openai_api_key):
+    # Request niche suggestions from OpenAI
+    return evaluate_businesses(business_description, openai_api_key=openai_api_key)
+
 def main():
     st.title("1001Leads - Cold Calling Challenge")
 
@@ -26,76 +30,93 @@ def main():
     user_website = st.text_input("Optional: Your Website")
     user_address = st.text_input("Your Business Address")
 
-    if st.button("Generate Leads"):
-        if not google_maps_api_key:
-            st.error("Please enter a valid Google Maps API key.")
-        elif not gohighlevel_api_key:
-            st.error("Please enter a valid GoHighLevel API key.")
-        elif not openai_api_key:
+    # Button to generate niche suggestions
+    if st.button("Generate Niche"):
+        if not openai_api_key:
             st.error("Please enter a valid OpenAI API key.")
-        elif not user_address:
-            st.error("Please enter your business address.")
+        elif not business_description:
+            st.error("Please enter a business description.")
         else:
-            # Get the postal codes for the user’s area
-            postal_codes = get_postal_codes_for_area(user_address, openai_api_key)
-            if not postal_codes:
-                st.error("Could not retrieve postal codes. Please check your OpenAI API key and business address.")
+            st.write("Generating niche suggestions...")
+            niche_suggestions = get_niche_suggestions(business_description, openai_api_key)
+            if not niche_suggestions:
+                st.error("Could not retrieve niche suggestions. Please check your OpenAI API key.")
                 return
 
-            # Construct the query based on user input
-            query = f"{business_description} in {user_address}"
+            # Display the top 3 niches as buttons
+            niches = niche_suggestions.split("\n")
+            if len(niches) > 3:
+                niches = niches[:3]  # Take only the top 3 niches
 
-            all_businesses = []
-            business_ids = set()
+            selected_niche = st.radio("Select a Niche", niches)
             
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                future_to_postal_code = {executor.submit(process_postal_code, postal_code, query, google_maps_api_key): postal_code for postal_code in postal_codes}
-                for future in as_completed(future_to_postal_code):
-                    postal_code = future_to_postal_code[future]
-                    try:
-                        businesses = future.result()
-                        for business in businesses:
-                            # Create a unique identifier for each business
-                            business_id = f"{business['name']} - {business['address']}"
-                            if business_id not in business_ids:
-                                business_ids.add(business_id)
-                                all_businesses.append(business)
-                    except Exception as exc:
-                        st.error(f"Error occurred while processing postal code {postal_code}: {exc}")
+            if st.button("Proceed with Selected Niche"):
+                if not google_maps_api_key or not user_address:
+                    st.error("Please enter your Google Maps API key and business address.")
+                    return
+                
+                st.write(f"Proceeding with selected niche: {selected_niche}")
 
-            if not all_businesses:
-                st.error("No businesses found. Please refine your search.")
-                return
+                # Get the postal codes for the user’s area
+                postal_codes = get_postal_codes_for_area(user_address, openai_api_key)
+                if not postal_codes:
+                    st.error("Could not retrieve postal codes. Please check your OpenAI API key and business address.")
+                    return
 
-            # Calculate lead scores
-            for business in all_businesses:
-                business["lead_score"] = calculate_lead_score(business)
-            
-            # Sort businesses by lead score and pick top 1001
-            top_businesses = sorted(all_businesses, key=lambda x: x["lead_score"], reverse=True)[:1001]
+                # Construct the query based on user input and selected niche
+                query = f"{selected_niche} in {user_address}"
 
-            # Save to CSV and display results
-            save_to_csv(top_businesses, "top_businesses.csv")
-            st.success(f"Saved {len(top_businesses)} top leads to top_businesses.csv")
-            display_results(top_businesses, st)
+                all_businesses = []
+                business_ids = set()
+                
+                with ThreadPoolExecutor(max_workers=5) as executor:
+                    future_to_postal_code = {executor.submit(process_postal_code, postal_code, query, google_maps_api_key): postal_code for postal_code in postal_codes}
+                    for future in as_completed(future_to_postal_code):
+                        postal_code = future_to_postal_code[future]
+                        try:
+                            businesses = future.result()
+                            for business in businesses:
+                                # Create a unique identifier for each business
+                                business_id = f"{business['name']} - {business['address']}"
+                                if business_id not in business_ids:
+                                    business_ids.add(business_id)
+                                    all_businesses.append(business)
+                        except Exception as exc:
+                            st.error(f"Error occurred while processing postal code {postal_code}: {exc}")
 
-            # Adding selected businesses to GoHighLevel
-            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in top_businesses]
-            selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names)
-            
-            if st.button("Add Selected to GoHighLevel"):
-                for business in top_businesses:
-                    business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
-                    if business_str in selected_businesses:
-                        contact = {
-                            "firstName": business["name"],
-                            "address1": business["address"],
-                            "phone": business["phone"],
-                            "website": business["website"],
-                            "email": business.get('best_email', '')
-                        }
-                        response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
-                        st.write(f"Added contact: {response}")
+                if not all_businesses:
+                    st.error("No businesses found. Please refine your search.")
+                    return
+
+                # Calculate lead scores
+                for business in all_businesses:
+                    business["lead_score"] = calculate_lead_score(business)
+                
+                # Sort businesses by lead score and pick top 1001
+                top_businesses = sorted(all_businesses, key=lambda x: x["lead_score"], reverse=True)[:1001]
+
+                # Save to CSV and display results
+                save_to_csv(top_businesses, "top_businesses.csv")
+                st.success(f"Saved {len(top_businesses)} top leads to top_businesses.csv")
+                display_results(top_businesses, st)
+
+                # Adding selected businesses to GoHighLevel
+                business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in top_businesses]
+                selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names)
+                
+                if st.button("Add Selected to GoHighLevel"):
+                    for business in top_businesses:
+                        business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
+                        if business_str in selected_businesses:
+                            contact = {
+                                "firstName": business["name"],
+                                "address1": business["address"],
+                                "phone": business["phone"],
+                                "website": business["website"],
+                                "email": business.get('best_email', '')
+                            }
+                            response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
+                            st.write(f"Added contact: {response}")
 
 if __name__ == "__main__":
     main()
