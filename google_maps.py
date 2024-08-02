@@ -1,5 +1,3 @@
-# google_maps.py
-
 import requests
 import time
 
@@ -62,3 +60,4 @@ def search_google_maps(query, location, api_key):
         time.sleep(2)
 
     return businesses
+
