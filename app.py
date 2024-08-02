@@ -1,10 +1,10 @@
+# Contents of app.py
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from google_maps import search_google_maps
 from openai_api import get_postal_codes, evaluate_businesses
 from gohighlevel import add_contact_to_gohighlevel
-from utils import save_to_csv, display_results, calculate_lead_score
-from web_scraper import get_business_reviews
+from utils import save_to_csv, display_results
 
 def process_postal_code(postal_code, query, api_key):
     st.write(f"Searching in postal code: {postal_code}")
@@ -22,7 +22,7 @@ def main():
     query = st.text_input("Query")
     city = st.text_input("City")
 
-    if st.button("Find Top Leads"):
+    if st.button("Search"):
         if not google_maps_api_key:
             st.error("Please enter a valid Google Maps API key in the settings.")
         elif not gohighlevel_api_key:
@@ -50,41 +50,45 @@ def main():
             # Remove duplicates
             unique_businesses = {b['name'] + b['address']: b for b in all_businesses}.values()
 
-            # Save businesses to CSV for OpenAI analysis
+            # Save results to CSV
             csv_file_path = "businesses.csv"
-            save_to_csv(unique_businesses, csv_file_path)
-
-            st.success(f"Saved {len(unique_businesses)} results to {csv_file_path}")
-
-            # Evaluate businesses with OpenAI
             try:
-                evaluation_result = evaluate_businesses(csv_file_path, openai_api_key)
-                st.write("### OpenAI Evaluation Result")
-                st.write(evaluation_result)
-            except Exception as e:
-                st.error(f"Error evaluating businesses: {e}")
-
+                save_to_csv(unique_businesses, csv_file_path)
+                st.success(f"Saved {len(unique_businesses)} results to {csv_file_path}")
+            except ValueError as ve:
+                st.error(str(ve))
+                return
+            
             display_results(unique_businesses, st)
 
             st.session_state.businesses = unique_businesses
 
-            business_names = [f"{business['name']} - {business['address']} (Score: {business['lead_score']})" for business in unique_businesses]
+            business_names = [f"{business['name']} - {business['address']}" for business in unique_businesses]
             selected_businesses = st.multiselect("Select businesses to add to GoHighLevel", business_names)
             
             if st.button("Add Selected to GoHighLevel"):
                 for business in unique_businesses:
-                    business_str = f"{business['name']} - {business['address']} (Score: {business['lead_score']})"
+                    business_str = f"{business['name']} - {business['address']}"
                     if business_str in selected_businesses:
                         contact = {
-                            "companyName": business["name"],  # Add company name to the contact
-                            "firstName": business["name"],  # Assuming first name is the company name
+                            "firstName": business["name"],
                             "address1": business["address"],
                             "phone": business["phone"],
-                            "website": business["website"],
-                            "email": business.get('email', '')  # Use 'email' field if available
+                            "website": business["website"]
                         }
                         response = add_contact_to_gohighlevel(gohighlevel_api_key, contact)
                         st.write(f"Added contact: {response}")
+
+    if st.button("Evaluate Best Leads"):
+        if 'businesses' not in st.session_state:
+            st.error("No businesses found. Please perform a search first.")
+        else:
+            try:
+                evaluation_result = evaluate_businesses("businesses.csv", openai_api_key)
+                st.write("## Evaluation Result")
+                st.write(evaluation_result)
+            except Exception as e:
+                st.error(f"Error evaluating businesses: {e}")
 
 if __name__ == "__main__":
     main()
